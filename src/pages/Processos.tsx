@@ -101,18 +101,7 @@ export default function Processos() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    const novoEdital = searchParams.get("novo_edital");
-    if (!loading && novoEdital && editais.length > 0) {
-      const exists = editais.find(e => e.id === novoEdital);
-      if (exists) {
-        setNovoEditalId(novoEdital);
-        setDialogOpen(true);
-      }
-      // Remove o parâmetro da URL para não reabrir em refresh
-      setSearchParams(new URLSearchParams());
-    }
-  }, [loading, searchParams, editais, setSearchParams]);
+
 
   const handleCriar = async () => {
     if (!novoNumero || !novoEditalId) {

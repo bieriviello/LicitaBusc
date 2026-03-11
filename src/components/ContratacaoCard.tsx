@@ -7,11 +7,20 @@ import {
     MapPin,
     Calendar,
     DollarSign,
-    FileDown,
     ExternalLink,
     Gavel,
+    Info,
+    Scale,
+    Clock
 } from "lucide-react";
 import { ArquivosDialog } from "./ArquivosDialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ContratacaoCardProps {
     contratacao: ComprasGovContratacao;
@@ -125,11 +134,101 @@ export function ContratacaoCard({ contratacao, onImportar }: ContratacaoCardProp
                 </div>
 
                 {/* Ações */}
-                <div className="flex items-center gap-2 pt-1 border-t border-border/30">
+                <div className="flex items-center gap-2 pt-1 border-t border-border/30 overflow-x-auto pb-1">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 shrink-0">
+                                <Info className="h-3 w-3" />
+                                Detalhes
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl">Detalhes do Edital</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 pt-4">
+                                <div className="space-y-1">
+                                    <h4 className="font-semibold text-sm">Objeto</h4>
+                                    <p className="text-sm text-foreground/80 leading-relaxed">
+                                        {contratacao.objetoCompra || "Não informado"}
+                                    </p>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
+                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5"/> Órgão / Entidade</p>
+                                        <p className="font-medium">{contratacao.orgaoEntidadeRazaoSocial}</p>
+                                        <p className="text-xs text-muted-foreground">CNPJ: {contratacao.orgaoEntidadeCnpj}</p>
+                                    </div>
+                                    <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
+                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5"/> Unidade Compradora</p>
+                                        <p className="font-medium">{contratacao.unidadeOrgaoNomeUnidade}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {contratacao.unidadeOrgaoMunicipioNome} - {contratacao.unidadeOrgaoUfSigla}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
+                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><Gavel className="h-3.5 w-3.5"/> Modalidade</p>
+                                        <p className="font-medium">
+                                            {contratacao.modalidadeNome}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">Disputa: {contratacao.modoDisputaNomePncp}</p>
+                                    </div>
+                                    <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
+                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5"/> Valor Estimado</p>
+                                        <p className="font-medium text-emerald-600 dark:text-emerald-400 text-base">
+                                            {formatCurrency(contratacao.valorTotalEstimado)}
+                                        </p>
+                                        {contratacao.valorTotalHomologado && (
+                                            <p className="text-xs text-emerald-600/80">Homologado: {formatCurrency(contratacao.valorTotalHomologado)}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
+                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><Clock className="h-3.5 w-3.5"/> Histórico de Datas</p>
+                                        <p className="font-medium text-xs space-y-1.5 mt-1">
+                                            <span className="block">Publicação: <span className="font-normal text-muted-foreground">{formatDate(contratacao.dataPublicacaoPncp)}</span></span>
+                                            {contratacao.dataAberturaPropostaPncp && <span className="block">Abertura: <span className="font-normal text-muted-foreground">{formatDate(contratacao.dataAberturaPropostaPncp)}</span></span>}
+                                            {contratacao.dataEncerramentoPropostaPncp && <span className="block">Encerramento: <span className="font-normal text-muted-foreground">{formatDate(contratacao.dataEncerramentoPropostaPncp)}</span></span>}
+                                        </p>
+                                    </div>
+                                    <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
+                                        <p className="text-muted-foreground font-medium mb-2">Situação Atual</p>
+                                        <Badge className={`hover:bg-transparent cursor-default px-2 py-1 ${getSituacaoColor(contratacao.situacaoCompraNomePncp)}`}>
+                                            {contratacao.situacaoCompraNomePncp}
+                                        </Badge>
+                                        {contratacao.processo && (
+                                            <p className="text-xs text-muted-foreground mt-2">Processo: {contratacao.processo}</p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground mt-1">PNCP: {contratacao.numeroControlePNCP}</p>
+                                    </div>
+                                </div>
+
+                                {(contratacao.amparoLegalNome || contratacao.informacaoComplementar) && (
+                                    <div className="pt-4 mt-2 border-t border-border/50 space-y-3">
+                                        {contratacao.amparoLegalNome && (
+                                            <div className="space-y-1 bg-muted/20 p-3 rounded border border-border/30">
+                                                <h4 className="font-semibold text-sm flex items-center gap-1.5">
+                                                    <Scale className="h-4 w-4 text-primary/70" /> Amparo Legal
+                                                </h4>
+                                                <p className="text-xs text-foreground/80 leading-relaxed">{contratacao.amparoLegalNome} - {contratacao.amparoLegalDescricao}</p>
+                                            </div>
+                                        )}
+                                        {contratacao.informacaoComplementar && (
+                                            <div className="space-y-1 bg-muted/20 p-3 rounded border border-border/30">
+                                                <h4 className="font-semibold text-sm">Informações Complementares</h4>
+                                                <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{contratacao.informacaoComplementar}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
                     <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs gap-1.5"
+                        className="h-7 text-xs gap-1.5 shrink-0"
                         onClick={() => window.open(pncpUrl, "_blank")}
                     >
                         <ExternalLink className="h-3 w-3" />

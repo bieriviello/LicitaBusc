@@ -58,15 +58,27 @@ export default function Editais() {
 
       if (insertError) throw insertError;
 
+      if (editalSalvo) {
+        const numeroInterno = contratacao.processo || `PROC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+        
+        const { error: procError } = await supabase.from("processos").insert({
+          edital_id: editalSalvo.id,
+          numero_interno: numeroInterno,
+          status: "em_andamento",
+          observacoes: "Processo importado automaticamente da busca."
+        });
+
+        if (procError) throw procError;
+      }
+
       toast({
-        title: "✅ Edital importado!",
-        description: `Importado com sucesso. Redirecionando para acompanhamento...`,
+        title: "✅ Importação concluída!",
+        description: `O edital e o processo foram criados. Redirecionando...`,
       });
 
-      // Redireciona para a tela de Processos já com o edital selecionado
-      if (editalSalvo) {
-        navigate(`/processos?novo_edital=${editalSalvo.id}`);
-      }
+      // Redireciona para a tela de Processos
+      navigate(`/processos`);
+      
     } catch (err: any) {
       toast({
         title: "Erro ao importar",
@@ -110,7 +122,7 @@ export default function Editais() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Editais</h1>
           <p className="text-muted-foreground mt-1">
-            Busque licitações do portal Compras.gov.br e importe para o sistema
+            Busque licitações do Portal Nacional de Contratações Públicas (PNCP) e importe para o sistema
           </p>
         </div>
 
@@ -132,7 +144,7 @@ export default function Editais() {
             <Search className="h-10 w-10 opacity-40" />
           </div>
           <p className="text-base font-medium">Busque licitações para começar</p>
-          <p className="text-sm mt-1">Use os filtros acima para consultar editais do Compras.gov.br</p>
+          <p className="text-sm mt-1">Use os filtros acima para consultar editais do PNCP</p>
         </div>
       )}
 
@@ -140,7 +152,7 @@ export default function Editais() {
       {isLoading && (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-          <p className="text-sm">Consultando API Compras.gov.br...</p>
+          <p className="text-sm">Consultando portal do PNCP...</p>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
     Select,
     SelectContent,
@@ -67,17 +68,46 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
     return (
         <div className="rounded-xl border border-border/50 bg-card p-4 space-y-4">
             {/* Busca por palavra-chave */}
-            <div className="space-y-2">
-                <Label htmlFor="palavraChave" className="text-xs font-medium">Palavra-chave</Label>
-                <Input
-                    id="palavraChave"
-                    type="text"
-                    value={palavraChave}
-                    onChange={(e) => setPalavraChave(e.target.value)}
-                    placeholder="Ex: computador, mobiliário, serviço de limpeza..."
-                    className="h-9"
-                    onKeyDown={(e) => e.key === "Enter" && handleBuscar()}
-                />
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="palavraChave" className="text-sm font-semibold">Palavra-chave do Objeto</Label>
+                    <Input
+                        id="palavraChave"
+                        type="text"
+                        value={palavraChave}
+                        onChange={(e) => setPalavraChave(e.target.value)}
+                        placeholder="Ex: luva cirúrgica, seringa, equipamento médico, gaze..."
+                        className="h-10 text-base"
+                        onKeyDown={(e) => e.key === "Enter" && handleBuscar()}
+                    />
+                </div>
+                
+                {/* Sugestões Rápidas: Foco Hospitalar */}
+                <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground font-medium">Filtro rápido da área da Saúde:</Label>
+                    <div className="flex flex-wrap gap-2">
+                        {["Medicamento", "Hospitalar", "Seringa", "Luva de Procedimento", "Gaze", "Cateter", "Fio Cirúrgico", "Soro", "Equipamento Médico"].map(termo => (
+                            <Badge 
+                                key={termo}
+                                variant={palavraChave.toLowerCase() === termo.toLowerCase() ? "default" : "secondary"}
+                                className="cursor-pointer hover:bg-primary/20 transition-colors py-1"
+                                onClick={() => {
+                                    setPalavraChave(termo);
+                                    onBuscar({
+                                        dataInicial,
+                                        dataFinal,
+                                        modalidade: Number(modalidade),
+                                        uf: uf || undefined,
+                                        cnpjOrgao: cnpjOrgao || undefined,
+                                        palavraChave: termo,
+                                    });
+                                }}
+                            >
+                                {termo}
+                            </Badge>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
