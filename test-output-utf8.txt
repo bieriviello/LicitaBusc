@@ -1,0 +1,12 @@
+﻿[dotenv@17.3.1] injecting env (3) from .env -- tip: ÔÜÖ´©Å  specify custom .env file path with { path: '/custom/path/.env' }
+DATA: null
+ERR: {
+  message: 'TypeError: fetch failed',
+  details: 'TypeError: fetch failed\n' +
+    '\n' +
+    'Caused by: Error: getaddrinfo ENOTFOUND uneyvwtpvkgyksdhdgpn.supabase.co (ENOTFOUND)\n' +
+    'Error: getaddrinfo ENOTFOUND uneyvwtpvkgyksdhdgpn.supabase.co\n' +
+    '    at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26)',
+  hint: '',
+  code: ''
+}
