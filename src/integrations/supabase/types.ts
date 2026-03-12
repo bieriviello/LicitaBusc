@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      monitoramentos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          filtros: Json | null
+          id: string
+          nome: string
+          palavra_chave: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          filtros?: Json | null
+          id?: string
+          nome: string
+          palavra_chave: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          filtros?: Json | null
+          id?: string
+          nome?: string
+          palavra_chave?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monitoramentos_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       documentos: {
         Row: {
           created_at: string
@@ -215,6 +256,56 @@ export type Database = {
             columns: ["proposta_id"]
             isOneToOne: false
             referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      participacao_itens: {
+        Row: {
+          id: string
+          processo_id: string
+          numero_item: number
+          descricao: string
+          valor_estimado: number | null
+          valor_proposta: number | null
+          quantidade: number | null
+          unidade: string | null
+          ganhou: boolean | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          processo_id: string
+          numero_item: number
+          descricao: string
+          valor_estimado?: number | null
+          valor_proposta?: number | null
+          quantidade?: number | null
+          unidade?: string | null
+          ganhou?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          processo_id?: string
+          numero_item?: number
+          descricao?: string
+          valor_estimado?: number | null
+          valor_proposta?: number | null
+          quantidade?: number | null
+          unidade?: string | null
+          ganhou?: boolean | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participacao_itens_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
             referencedColumns: ["id"]
           },
         ]

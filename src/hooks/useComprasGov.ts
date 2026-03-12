@@ -4,6 +4,7 @@ import {
     buscarLicitacoesLegado,
     buscarPregoes,
     buscarArquivosPncp,
+    buscarItensPncp,
 } from "@/integrations/comprasGov/comprasGovApi";
 import type {
     FiltrosContratacao,
@@ -59,6 +60,19 @@ export function useArquivosPncp(cnpj: string | undefined, ano: number | undefine
         queryFn: () => buscarArquivosPncp(cnpj!, ano!, sequencial!),
         enabled: enabled && !!cnpj && !!ano && !!sequencial,
         staleTime: 15 * 60 * 1000, // 15 min cache
+        retry: 1,
+    });
+}
+
+/**
+ * Hook para buscar itens de uma contratação PNCP
+ */
+export function useItensPncp(cnpj: string | undefined, ano: number | undefined, sequencial: number | undefined, enabled: boolean) {
+    return useQuery({
+        queryKey: ["itens-pncp", cnpj, ano, sequencial],
+        queryFn: () => buscarItensPncp(cnpj!, ano!, sequencial!),
+        enabled: enabled && !!cnpj && !!ano && !!sequencial,
+        staleTime: 15 * 60 * 1000,
         retry: 1,
     });
 }

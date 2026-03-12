@@ -11,7 +11,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { MODALIDADES_PNCP, UFS_BRASIL } from "@/integrations/comprasGov/types";
-import { Search, RotateCcw } from "lucide-react";
+import { Search, RotateCcw, Plus, Globe } from "lucide-react";
 
 interface ComprasGovFiltersProps {
     onBuscar: (filtros: {
@@ -21,8 +21,10 @@ interface ComprasGovFiltersProps {
         uf?: string;
         cnpjOrgao?: string;
         palavraChave?: string;
+        modulo?: 'pncp' | 'legado' | 'pregao';
     }) => void;
     loading?: boolean;
+    onSaveMonitoramento?: (nome: string, termo: string) => void;
 }
 
 function getDefaultDates() {
@@ -35,7 +37,7 @@ function getDefaultDates() {
     };
 }
 
-export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps) {
+export function ComprasGovFilters({ onBuscar, onSaveMonitoramento, loading }: ComprasGovFiltersProps) {
     const defaults = getDefaultDates();
     const [dataInicial, setDataInicial] = useState(defaults.dataInicial);
     const [dataFinal, setDataFinal] = useState(defaults.dataFinal);
@@ -43,6 +45,7 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
     const [uf, setUf] = useState("");
     const [cnpjOrgao, setCnpjOrgao] = useState("");
     const [palavraChave, setPalavraChave] = useState("");
+    const [modulo, setModulo] = useState<'pncp' | 'legado' | 'pregao'>('pncp');
 
     const handleBuscar = () => {
         onBuscar({
@@ -52,6 +55,7 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
             uf: uf || undefined,
             cnpjOrgao: cnpjOrgao || undefined,
             palavraChave: palavraChave || undefined,
+            modulo,
         });
     };
 
@@ -63,6 +67,7 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
         setUf("");
         setCnpjOrgao("");
         setPalavraChave("");
+        setModulo('pncp');
     };
 
     return (
@@ -80,6 +85,22 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
                         className="h-10 text-base"
                         onKeyDown={(e) => e.key === "Enter" && handleBuscar()}
                     />
+                    <div className="absolute right-3 top-[34px] flex gap-2">
+                        {palavraChave && (
+                             <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-7 text-[10px] gap-1 px-2 text-primary hover:text-primary hover:bg-primary/10"
+                                onClick={() => {
+                                    const nome = prompt("Dê um nome para este monitoramento:", palavraChave);
+                                    if (nome && onSaveMonitoramento) onSaveMonitoramento(nome, palavraChave);
+                                }}
+                             >
+                                <Plus className="h-3 w-3" />
+                                Salvar Filtro
+                             </Button>
+                        )}
+                    </div>
                 </div>
                 
                 {/* Sugestões Rápidas: Foco Hospitalar */}
@@ -111,27 +132,31 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="space-y-2">
-                    <Label htmlFor="dataInicial" className="text-xs font-medium">Data Inicial</Label>
-                    <Input
-                        id="dataInicial"
-                        type="date"
-                        value={dataInicial}
-                        onChange={(e) => setDataInicial(e.target.value)}
-                        className="h-9"
-                    />
-                </div>
+                {modulo !== 'pregao' && (
+                    <>
+                        <div className="space-y-2">
+                            <Label htmlFor="dataInicial" className="text-xs font-medium">Data Inicial</Label>
+                            <Input
+                                id="dataInicial"
+                                type="date"
+                                value={dataInicial}
+                                onChange={(e) => setDataInicial(e.target.value)}
+                                className="h-9"
+                            />
+                        </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="dataFinal" className="text-xs font-medium">Data Final</Label>
-                    <Input
-                        id="dataFinal"
-                        type="date"
-                        value={dataFinal}
-                        onChange={(e) => setDataFinal(e.target.value)}
-                        className="h-9"
-                    />
-                </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="dataFinal" className="text-xs font-medium">Data Final</Label>
+                            <Input
+                                id="dataFinal"
+                                type="date"
+                                value={dataFinal}
+                                onChange={(e) => setDataFinal(e.target.value)}
+                                className="h-9"
+                            />
+                        </div>
+                    </>
+                )}
 
                 <div className="space-y-2">
                     <Label className="text-xs font-medium">Modalidade</Label>
@@ -177,6 +202,29 @@ export function ComprasGovFilters({ onBuscar, loading }: ComprasGovFiltersProps)
                         className="h-9"
                     />
                 </div>
+
+                <div className="space-y-2">
+                    <Label className="text-xs font-medium">Portal / Fonte</Label>
+                    <Select value={modulo} onValueChange={(v: any) => setModulo(v)}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pncp">PNCP (Lei 14.133)</SelectItem>
+                            <SelectItem value="legado">Compras.gov (Legado)</SelectItem>
+                            <SelectItem value="pregao">Pregões (Legado)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {modulo === 'pregao' && (
+                    <div className="lg:col-span-2 flex items-end pb-1.5 h-full">
+                        <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20 gap-1.5 py-1 w-full justify-center">
+                            <Plus className="h-3 w-3" />
+                            Mostrando apenas pregões ativos (não vencidos)
+                        </Badge>
+                    </div>
+                )}
             </div>
 
             <div className="flex items-center gap-2 pt-1">

@@ -22,9 +22,11 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 
+import { BaseEdital } from "@/integrations/comprasGov/types";
+
 interface ContratacaoCardProps {
-    contratacao: ComprasGovContratacao;
-    onImportar?: (contratacao: ComprasGovContratacao) => void;
+    edital: BaseEdital;
+    onImportar?: (edital: BaseEdital) => void;
 }
 
 function formatCurrency(value: number | null): string {
@@ -62,8 +64,16 @@ function getSituacaoColor(situacao: string): string {
     return map[situacao] || "bg-muted text-muted-foreground";
 }
 
-export function ContratacaoCard({ contratacao, onImportar }: ContratacaoCardProps) {
-    const pncpUrl = `https://pncp.gov.br/app/editais/${contratacao.orgaoEntidadeCnpj}/${contratacao.anoCompraPncp}/${contratacao.sequencialCompraPncp}`;
+export function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
+    const pncpUrl = edital.link || (edital.portal === 'pncp' 
+        ? `https://pncp.gov.br/app/editais/${edital.cnpj}/${edital.raw.anoCompraPncp}/${edital.raw.sequencialCompraPncp}`
+        : `https://comprasnet.gov.br/livre/pregao/pregao_detalhes.asp?coduasg=${edital.raw.uasg || edital.raw.co_uasg}&numprp=${edital.raw.numero_aviso || edital.raw.numero}`);
+
+    const portalLabel = {
+        pncp: "PNCP",
+        comprasgov: "Compras.gov",
+        pregao: "Pregões"
+    }[edital.portal];
 
     return (
         <Card className="border-border/50 hover:shadow-md transition-all duration-200 hover:border-primary/20">
@@ -72,40 +82,48 @@ export function ContratacaoCard({ contratacao, onImportar }: ContratacaoCardProp
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm text-foreground leading-snug line-clamp-2">
-                            {contratacao.objetoCompra || "Objeto não informado"}
+                            {edital.objeto || "Objeto não informado"}
                         </p>
                     </div>
-                    <Badge
-                        variant="secondary"
-                        className={`shrink-0 text-[10px] ${getSituacaoColor(contratacao.situacaoCompraNomePncp)}`}
-                    >
-                        {contratacao.situacaoCompraNomePncp}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <Badge
+                            variant="secondary"
+                            className="text-[10px] bg-primary/10 text-primary border-primary/20"
+                        >
+                            {portalLabel}
+                        </Badge>
+                        <Badge
+                            variant="secondary"
+                            className={`text-[10px] ${getSituacaoColor(edital.raw.situacaoCompraNomePncp || edital.raw.ds_situacao_pregao || "Divulgada")}`}
+                        >
+                            {edital.raw.situacaoCompraNomePncp || edital.raw.ds_situacao_pregao || "Divulgada"}
+                        </Badge>
+                    </div>
                 </div>
 
                 {/* Informações do órgão */}
                 <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                     <div className="flex items-center gap-1.5">
                         <Building2 className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-                        <span className="truncate" title={contratacao.unidadeOrgaoNomeUnidade}>
-                            {contratacao.unidadeOrgaoNomeUnidade}
+                        <span className="truncate" title={edital.orgao}>
+                            {edital.orgao}
                         </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <MapPin className="h-3.5 w-3.5 shrink-0 text-primary/60" />
                         <span>
-                            {contratacao.unidadeOrgaoMunicipioNome
-                                ? `${contratacao.unidadeOrgaoMunicipioNome} - ${contratacao.unidadeOrgaoUfSigla}`
-                                : contratacao.unidadeOrgaoUfSigla}
+                            {edital.municipio
+                                ? `${edital.municipio} - ${edital.uf}`
+                                : edital.uf || "Nacional"}
                         </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <Gavel className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-                        <span>{contratacao.modalidadeNome}</span>
+                        <span>{edital.modalidade}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5 shrink-0 text-primary/60" />
-                        <span>Publicado: {formatDate(contratacao.dataPublicacaoPncp)}</span>
+                        <span>Publicado: {formatDate(edital.dataPublicacao)}</span>
                     </div>
                 </div>
 
@@ -114,21 +132,23 @@ export function ContratacaoCard({ contratacao, onImportar }: ContratacaoCardProp
                     <div className="flex items-center gap-1.5 text-xs">
                         <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
                         <span className="font-semibold text-foreground">
-                            {formatCurrency(contratacao.valorTotalEstimado)}
+                            {formatCurrency(edital.valor)}
                         </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                        CNPJ: {contratacao.orgaoEntidadeCnpj}
-                    </span>
+                    {edital.cnpj && (
+                         <span className="text-[10px] text-muted-foreground font-mono">
+                            CNPJ: {edital.cnpj}
+                        </span>
+                    )}
                 </div>
 
-                {/* Número PNCP + Processo */}
+                {/* Número + Processo */}
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <span>PNCP: {contratacao.numeroControlePNCP}</span>
-                    {contratacao.processo && (
+                    {edital.numeroControle && <span>ID: {edital.numeroControle}</span>}
+                    {edital.processo && (
                         <>
-                            <span>•</span>
-                            <span>Proc: {contratacao.processo}</span>
+                            {edital.numeroControle && <span>•</span>}
+                            <span>Proc: {edital.processo}</span>
                         </>
                     )}
                 </div>
@@ -150,73 +170,68 @@ export function ContratacaoCard({ contratacao, onImportar }: ContratacaoCardProp
                                 <div className="space-y-1">
                                     <h4 className="font-semibold text-sm">Objeto</h4>
                                     <p className="text-sm text-foreground/80 leading-relaxed">
-                                        {contratacao.objetoCompra || "Não informado"}
+                                        {edital.objeto || "Não informado"}
                                     </p>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
                                         <p className="text-muted-foreground font-medium flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5"/> Órgão / Entidade</p>
-                                        <p className="font-medium">{contratacao.orgaoEntidadeRazaoSocial}</p>
-                                        <p className="text-xs text-muted-foreground">CNPJ: {contratacao.orgaoEntidadeCnpj}</p>
+                                        <p className="font-medium">{edital.orgao}</p>
+                                        {edital.cnpj && <p className="text-xs text-muted-foreground">CNPJ: {edital.cnpj}</p>}
                                     </div>
                                     <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
-                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5"/> Unidade Compradora</p>
-                                        <p className="font-medium">{contratacao.unidadeOrgaoNomeUnidade}</p>
+                                        <p className="text-muted-foreground font-medium flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5"/> Localidade</p>
+                                        <p className="font-medium">{edital.municipio || "Não informado"}</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {contratacao.unidadeOrgaoMunicipioNome} - {contratacao.unidadeOrgaoUfSigla}
+                                            {edital.uf || "Brasil"}
                                         </p>
                                     </div>
                                     <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
                                         <p className="text-muted-foreground font-medium flex items-center gap-1.5"><Gavel className="h-3.5 w-3.5"/> Modalidade</p>
                                         <p className="font-medium">
-                                            {contratacao.modalidadeNome}
+                                            {edital.modalidade}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">Disputa: {contratacao.modoDisputaNomePncp}</p>
                                     </div>
                                     <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
                                         <p className="text-muted-foreground font-medium flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5"/> Valor Estimado</p>
                                         <p className="font-medium text-emerald-600 dark:text-emerald-400 text-base">
-                                            {formatCurrency(contratacao.valorTotalEstimado)}
+                                            {formatCurrency(edital.valor)}
                                         </p>
-                                        {contratacao.valorTotalHomologado && (
-                                            <p className="text-xs text-emerald-600/80">Homologado: {formatCurrency(contratacao.valorTotalHomologado)}</p>
-                                        )}
                                     </div>
                                     <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
                                         <p className="text-muted-foreground font-medium flex items-center gap-1.5"><Clock className="h-3.5 w-3.5"/> Histórico de Datas</p>
                                         <p className="font-medium text-xs space-y-1.5 mt-1">
-                                            <span className="block">Publicação: <span className="font-normal text-muted-foreground">{formatDate(contratacao.dataPublicacaoPncp)}</span></span>
-                                            {contratacao.dataAberturaPropostaPncp && <span className="block">Abertura: <span className="font-normal text-muted-foreground">{formatDate(contratacao.dataAberturaPropostaPncp)}</span></span>}
-                                            {contratacao.dataEncerramentoPropostaPncp && <span className="block">Encerramento: <span className="font-normal text-muted-foreground">{formatDate(contratacao.dataEncerramentoPropostaPncp)}</span></span>}
+                                            <span className="block">Publicação: <span className="font-normal text-muted-foreground">{formatDate(edital.dataPublicacao)}</span></span>
+                                            {edital.dataAbertura && <span className="block">Abertura: <span className="font-normal text-muted-foreground">{formatDate(edital.dataAbertura)}</span></span>}
                                         </p>
                                     </div>
                                     <div className="space-y-1 text-sm bg-muted/40 p-3 rounded-lg border border-border/50">
                                         <p className="text-muted-foreground font-medium mb-2">Situação Atual</p>
-                                        <Badge className={`hover:bg-transparent cursor-default px-2 py-1 ${getSituacaoColor(contratacao.situacaoCompraNomePncp)}`}>
-                                            {contratacao.situacaoCompraNomePncp}
+                                        <Badge className={`hover:bg-transparent cursor-default px-2 py-1 ${getSituacaoColor(edital.raw.situacaoCompraNomePncp || edital.raw.ds_situacao_pregao || "Divulgada")}`}>
+                                            {edital.raw.situacaoCompraNomePncp || edital.raw.ds_situacao_pregao || "Divulgada"}
                                         </Badge>
-                                        {contratacao.processo && (
-                                            <p className="text-xs text-muted-foreground mt-2">Processo: {contratacao.processo}</p>
+                                        {edital.processo && (
+                                            <p className="text-xs text-muted-foreground mt-2">Processo: {edital.processo}</p>
                                         )}
-                                        <p className="text-xs text-muted-foreground mt-1">PNCP: {contratacao.numeroControlePNCP}</p>
+                                        {edital.numeroControle && <p className="text-xs text-muted-foreground mt-1">ID: {edital.numeroControle}</p>}
                                     </div>
                                 </div>
 
-                                {(contratacao.amparoLegalNome || contratacao.informacaoComplementar) && (
+                                {(edital.raw.amparoLegalNome || edital.raw.informacaoComplementar) && (
                                     <div className="pt-4 mt-2 border-t border-border/50 space-y-3">
-                                        {contratacao.amparoLegalNome && (
+                                        {edital.raw.amparoLegalNome && (
                                             <div className="space-y-1 bg-muted/20 p-3 rounded border border-border/30">
                                                 <h4 className="font-semibold text-sm flex items-center gap-1.5">
                                                     <Scale className="h-4 w-4 text-primary/70" /> Amparo Legal
                                                 </h4>
-                                                <p className="text-xs text-foreground/80 leading-relaxed">{contratacao.amparoLegalNome} - {contratacao.amparoLegalDescricao}</p>
+                                                <p className="text-xs text-foreground/80 leading-relaxed">{edital.raw.amparoLegalNome} - {edital.raw.amparoLegalDescricao}</p>
                                             </div>
                                         )}
-                                        {contratacao.informacaoComplementar && (
+                                        {edital.raw.informacaoComplementar && (
                                             <div className="space-y-1 bg-muted/20 p-3 rounded border border-border/30">
                                                 <h4 className="font-semibold text-sm">Informações Complementares</h4>
-                                                <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{contratacao.informacaoComplementar}</p>
+                                                <p className="text-xs text-foreground/80 whitespace-pre-wrap leading-relaxed">{edital.raw.informacaoComplementar}</p>
                                             </div>
                                         )}
                                     </div>
@@ -232,19 +247,22 @@ export function ContratacaoCard({ contratacao, onImportar }: ContratacaoCardProp
                         onClick={() => window.open(pncpUrl, "_blank")}
                     >
                         <ExternalLink className="h-3 w-3" />
-                        Ver no PNCP
+                        Ver no Portal
                     </Button>
-                    <ArquivosDialog
-                        cnpj={contratacao.orgaoEntidadeCnpj}
-                        ano={contratacao.anoCompraPncp}
-                        sequencial={contratacao.sequencialCompraPncp}
-                    />
+                    {edital.portal === 'pncp' && (
+                         <ArquivosDialog
+                             cnpj={edital.cnpj!}
+                             ano={edital.raw.anoCompraPncp}
+                             sequencial={edital.raw.sequencialCompraPncp}
+                         />
+                    )}
                     {onImportar && (
                         <Button
                             size="sm"
                             className="h-7 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-                            onClick={() => onImportar(contratacao)}
+                            onClick={() => onImportar(edital)}
                         >
+                            <Gavel className="h-3.5 w-3.5" />
                             Acompanhar Processo
                         </Button>
                     )}

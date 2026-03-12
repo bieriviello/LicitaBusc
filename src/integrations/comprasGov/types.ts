@@ -106,6 +106,25 @@ export interface ComprasGovPregao {
     pertence14133: boolean;
 }
 
+/** Interface unificada para exibição */
+export interface BaseEdital {
+    id: string;
+    objeto: string;
+    orgao: string;
+    cnpj?: string;
+    modalidade: string;
+    valor: number | null;
+    dataPublicacao: string;
+    dataAbertura?: string;
+    municipio?: string;
+    uf?: string;
+    portal: 'pncp' | 'comprasgov' | 'pregao';
+    link?: string;
+    numeroControle?: string;
+    processo?: string;
+    raw: any;
+}
+
 // ===========================
 // Tipos de Arquivos PNCP
 // ===========================
@@ -116,6 +135,16 @@ export interface ComprasGovArquivo {
     titulo: string;
     tipoDocumentoNome: string;
     dataPublicacaoPncp: string;
+}
+
+export interface ComprasGovItem {
+    numeroItem: number;
+    descricao: string;
+    quantidade: number;
+    unidadeMedida: string;
+    valorUnitarioEstimado: number;
+    valorTotalEstimado: number;
+    situacaoItemNome: string;
 }
 
 // ===========================

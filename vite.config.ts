@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
         target: "https://dadosabertos.compras.gov.br",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/compras/, ""),
-        secure: true,
+        secure: false,
       },
     },
   },

@@ -7,6 +7,7 @@ import type {
     FiltrosLicitacaoLegado,
     FiltrosPregao,
     ComprasGovArquivo,
+    ComprasGovItem,
 } from "./types";
 
 const BASE_URL = "/api/compras";
@@ -19,7 +20,12 @@ function buildQueryString(params: Record<string, unknown>): string {
     const searchParams = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
         if (value !== undefined && value !== null && value !== "") {
-            searchParams.append(key, String(value));
+            let stringValue = String(value);
+            // Se for CNPJ, removemos caracteres não numéricos.
+            if (key.toLowerCase().includes("cnpj")) {
+                stringValue = stringValue.replace(/\D/g, "");
+            }
+            searchParams.append(key, stringValue);
         }
     }
     return searchParams.toString();
@@ -33,12 +39,17 @@ async function fetchApi<T>(path: string, params: Record<string, unknown>): Promi
     const url = `${BASE_URL}${path}?${qs}`;
 
     const response = await fetch(url, {
-        headers: { Accept: "application/json" },
+        headers: { 
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": "TendertrackHub/1.0"
+        },
     });
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "Erro desconhecido");
-        throw new Error(`Erro na API Compras.gov.br (${response.status}): ${errorText}`);
+        const error = new Error(`Erro na API Compras.gov.br (${response.status}): ${errorText}`) as any;
+        error.details = `URL: ${url} | Params: ${JSON.stringify(params)}`;
+        throw error;
     }
 
     return response.json();
@@ -85,6 +96,25 @@ export async function buscarArquivosPncp(
     if (!response.ok) {
         if (response.status === 404) return []; // Sem arquivos
         throw new Error(`Erro ao buscar arquivos PNCP (${response.status})`);
+    }
+
+    return response.json();
+}
+
+export async function buscarItensPncp(
+    cnpj: string,
+    ano: number,
+    sequencial: number
+): Promise<ComprasGovItem[]> {
+    const url = `https://pncp.gov.br/api/pncp/v1/orgaos/${cnpj}/compras/${ano}/${sequencial}/itens?pagina=1&tamanhoPagina=100`;
+
+    const response = await fetch(url, {
+        headers: { Accept: "application/json" }
+    });
+
+    if (!response.ok) {
+        if (response.status === 404) return [];
+        throw new Error(`Erro ao buscar itens PNCP (${response.status})`);
     }
 
     return response.json();
