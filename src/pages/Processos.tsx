@@ -35,6 +35,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useItensPncp } from "@/hooks/useComprasGov";
+import { UasgProfile } from "@/components/UasgProfile";
+import { FileUpload } from "@/components/FileUpload";
+import { pdfService } from "@/services/pdfService";
+import { AIAnalysisDialog } from "@/components/AIAnalysisDialog";
 
 interface Processo {
   id: string;
@@ -52,6 +56,8 @@ interface Processo {
     raw_json: any;
   };
   participacao_itens?: { count: number }[];
+  checklist?: { id: string, label: string, completed: boolean }[];
+  documentos?: { id: string, nome: string, url: string, created_at: string }[];
 }
 
 interface Edital {
@@ -72,10 +78,13 @@ interface ParticipacaoItem {
 }
 
 const STATUS_OPTIONS = [
-  { value: "em_andamento", label: "Em Andamento", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  { value: "concluido", label: "Concluído", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  { value: "triagem", label: "Triagem", color: "bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400" },
+  { value: "analise_tecnica", label: "Análise Técnica", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  { value: "montagem_documentacao", label: "Montagem Documentação", color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
+  { value: "proposta_enviada", label: "Proposta Enviada", color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400" },
+  { value: "disputa_lances", label: "Disputa/Lances", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  { value: "homologado", label: "Homologado", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  { value: "suspenso", label: "Suspenso", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
 ];
 
 import { useSearchParams } from "react-router-dom";
@@ -98,6 +107,9 @@ export default function Processos() {
   const [novoStatus, setNovoStatus] = useState("em_andamento");
   const [novoPrazo, setNovoPrazo] = useState("");
   const [novoObs, setNovoObs] = useState("");
+
+  const [uasgProfileOpen, setUasgProfileOpen] = useState(false);
+  const [selectedOrgao, setSelectedOrgao] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchData = async () => {
@@ -106,7 +118,7 @@ export default function Processos() {
     // 1. Fetch processes and editals first (this is the core data)
     const { data: procData, error: procError } = await supabase
       .from("processos")
-      .select("*, editais(objeto, orgao, numero, status, raw_json)")
+      .select("*, editais(objeto, orgao, numero, status, raw_json), documentos(*)")
       .order("created_at", { ascending: false });
 
     // 2. Fetch editals for the selection dropdown
@@ -123,7 +135,7 @@ export default function Processos() {
         variant: "destructive" 
       });
     } else if (procData) {
-      setProcessos(procData as Processo[]);
+      setProcessos(procData as unknown as Processo[]);
       
       // 3. Try to fetch participation counts separately
       // This way, if the table 'participacao_itens' doesn't exist yet, 
@@ -181,7 +193,7 @@ export default function Processos() {
       setDialogOpen(false);
       setNovoNumero("");
       setNovoEditalId("");
-      setNovoStatus("em_andamento");
+      setNovoStatus("triagem");
       setNovoPrazo("");
       setNovoObs("");
       fetchData();
@@ -317,80 +329,98 @@ export default function Processos() {
         </div>
       )}
 
-      {/* Processos list */}
+      {/* Kanban Board */}
       {!loading && processos.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {processos.map((proc) => {
-            const badge = getStatusBadge(proc.status);
+        <div className="flex gap-4 overflow-x-auto pb-6 h-[calc(100vh-250px)] custom-scrollbar">
+          {STATUS_OPTIONS.map((col) => {
+            const processosNaColuna = processos.filter(p => p.status === col.value);
             return (
-              <Card 
-                key={proc.id} 
-                className="border-border/50 hover:shadow-md transition-all duration-200 cursor-pointer"
-                onClick={() => {
-                  setSelectedProcesso(proc);
-                  setDetailsOpen(true);
-                }}
-              >
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm text-foreground">
-                        {proc.numero_interno}
-                      </p>
-                      {proc.editais && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                          {proc.editais.objeto}
-                        </p>
-                      )}
-                    </div>
-                    <Badge variant="secondary" className={`shrink-0 text-[10px] ${badge.color}`}>
-                      {badge.label}
-                    </Badge>
+              <div key={col.value} className="flex-shrink-0 w-80 flex flex-col gap-4 bg-muted/30 rounded-xl p-3 border border-border/50">
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{col.label}</h3>
+                    <Badge variant="secondary" className="rounded-full px-2 py-0 h-5 text-[10px]">{processosNaColuna.length}</Badge>
                   </div>
+                </div>
 
-                  <div className="space-y-1.5 text-xs text-muted-foreground">
-                    {proc.editais && (
-                      <div className="flex items-center gap-1.5">
-                        <Building2 className="h-3.5 w-3.5 text-primary/60" />
-                        <span className="truncate">{proc.editais.orgao}</span>
-                      </div>
-                    )}
-                    {proc.editais && (
-                      <div className="flex items-center gap-1.5">
-                        <FileText className="h-3.5 w-3.5 text-primary/60" />
-                        <span>Edital: {proc.editais.numero}</span>
-                      </div>
-                    )}
-                    {proc.prazo && (
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-primary/60" />
-                        <span>
-                          Prazo: {new Date(proc.prazo).toLocaleDateString("pt-BR")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                  {processosNaColuna.map((proc) => {
+                    const badge = getStatusBadge(proc.status);
+                    const completedItems = proc.checklist?.filter(c => c.completed).length || 0;
+                    const totalItems = proc.checklist?.length || 0;
+                    
+                    return (
+                      <Card 
+                        key={proc.id} 
+                        className="border-border/50 hover:shadow-md transition-all duration-200 cursor-pointer group bg-card"
+                        onClick={() => {
+                          setSelectedProcesso(proc);
+                          setDetailsOpen(true);
+                        }}
+                      >
+                        <CardContent className="p-3 space-y-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+                              {proc.numero_interno}
+                            </p>
+                            {proc.editais && (
+                              <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
+                                {proc.editais.objeto}
+                              </p>
+                            )}
+                          </div>
 
-                  {proc.participacao_itens && proc.participacao_itens[0]?.count > 0 && (
-                    <div className="bg-primary/5 rounded-md p-2 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary">
-                        <Check className="h-3 w-3" />
-                        <span>PARTICIPANDO DE {proc.participacao_itens[0].count} ITEM(NS)</span>
-                      </div>
-                    </div>
-                  )}
+                          <div className="space-y-1.5 text-[10px] text-muted-foreground">
+                            {proc.editais && (
+                              <div 
+                                className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOrgao(proc.editais!.orgao);
+                                  setUasgProfileOpen(true);
+                                }}
+                              >
+                                <Building2 className="h-3 w-3 text-primary/60" />
+                                <span className="truncate border-b border-dotted border-muted-foreground/30 hover:border-primary/50">{proc.editais.orgao}</span>
+                              </div>
+                            )}
+                            {proc.prazo && (
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="h-3 w-3 text-primary/60" />
+                                <span className={new Date(proc.prazo) < new Date() ? 'text-destructive font-semibold' : ''}>
+                                  Prazo: {new Date(proc.prazo).toLocaleDateString("pt-BR")}
+                                </span>
+                              </div>
+                            )}
+                          </div>
 
-                  {proc.observacoes && (
-                    <p className="text-[11px] text-muted-foreground bg-muted/50 rounded-md p-2 line-clamp-2">
-                      {proc.observacoes}
-                    </p>
-                  )}
+                          {totalItems > 0 && (
+                            <div className="pt-2 border-t border-border/30">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[9px] font-bold text-muted-foreground">DOCUMENTOS</span>
+                                <span className="text-[9px] font-bold text-primary">{Math.round((completedItems/totalItems)*100)}%</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                                <div 
+                                  className="bg-primary h-full transition-all" 
+                                  style={{ width: `${(completedItems/totalItems)*100}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
 
-                  <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/30">
-                    Criado em {new Date(proc.created_at).toLocaleDateString("pt-BR")}
-                  </div>
-                </CardContent>
-              </Card>
+                          {proc.participacao_itens && proc.participacao_itens[0]?.count > 0 && (
+                            <Badge variant="outline" className="w-full justify-center text-[9px] py-1 bg-primary/5 text-primary border-primary/20 gap-1 mt-1">
+                              <Check className="h-2.5 w-2.5" />
+                              {proc.participacao_itens[0].count} ITENS VINCULADOS
+                            </Badge>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -402,6 +432,12 @@ export default function Processos() {
         open={detailsOpen} 
         onOpenChange={setDetailsOpen} 
         onRefresh={fetchData}
+      />
+
+      <UasgProfile 
+        orgao={selectedOrgao} 
+        open={uasgProfileOpen} 
+        onOpenChange={setUasgProfileOpen} 
       />
     </div>
   );
@@ -418,6 +454,10 @@ function EditalDetailsDialog({
   onOpenChange: (open: boolean) => void,
   onRefresh?: () => void
 }) {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [pdfText, setPdfText] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+
   const edital = processo?.editais;
   const raw = edital?.raw_json as any;
   
@@ -578,7 +618,7 @@ function EditalDetailsDialog({
               <p className="text-sm leading-relaxed">{edital?.objeto}</p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg">
               <div className="space-y-1">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase">Data de Abertura</p>
                 <div className="flex items-center gap-1.5 text-sm">
@@ -596,10 +636,116 @@ function EditalDetailsDialog({
                     : "Não informado"}
                 </p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase">Modalidade</p>
-                <p className="text-sm">{raw?.modalidadeNome || "N/A"}</p>
               </div>
+            </div>
+
+            {/* Documentos Anexados */}
+            <div className="space-y-3 p-4 border rounded-lg bg-card">
+               <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Documentos Adicionais (PDF/Edital)
+                  </h3>
+                  <FileUpload processoId={processo.id} onUploadComplete={() => onRefresh && onRefresh()} />
+               </div>
+               
+               <div className="space-y-2">
+                  {processo.documentos && processo.documentos.length > 0 ? (
+                    processo.documentos.map(doc => (
+                      <div key={doc.id} className="flex items-center justify-between p-2 bg-muted/20 rounded border border-border/10">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-primary/60 shrink-0" />
+                          <span className="text-xs truncate">{doc.nome}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 text-[10px] gap-1 hover:text-primary"
+                            onClick={async () => {
+                              setAnalyzing(true);
+                              try {
+                                const response = await fetch(doc.url);
+                                const blob = await response.blob();
+                                const file = new File([blob], doc.nome, { type: "application/pdf" });
+                                const text = await pdfService.extractText(file);
+                                setPdfText(text);
+                                setAiOpen(true);
+                              } catch (err) {
+                                toast({ title: "Erro na leitura", description: "Não foi possível ler este PDF.", variant: "destructive" });
+                              } finally {
+                                setAnalyzing(false);
+                              }
+                            }}
+                            disabled={analyzing}
+                          >
+                            {analyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            Analisar com IA
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 w-7 p-0"
+                            onClick={() => window.open(doc.url, "_blank")}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground italic">Nenhum documento anexado ainda.</p>
+                  )}
+               </div>
+            </div>
+
+            {/* AI Analysis Dialog inside process details */}
+            <AIAnalysisDialog 
+              open={aiOpen} 
+              onOpenChange={setAiOpen} 
+              objeto={edital?.objeto || ""} 
+              raw={edital?.raw_json} 
+              pdfText={pdfText}
+            />
+
+            {/* Checklist de Documentos */}
+            <div className="space-y-3 p-4 border rounded-lg bg-card">
+               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                 <FileText className="h-4 w-4" />
+                 Checklist de Documentação
+               </h3>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    "Balanço Patrimonial", 
+                    "Certidões Negativas (Federal, RS, Municipal)", 
+                    "Atestados de Capacidade Técnica",
+                    "Contrato Social / Estatuto",
+                    "Certidão de Falência",
+                    "CRC / Cadastro no Portal"
+                  ].map(doc => {
+                    const isCompleted = !!processo.checklist?.find(c => c.label === doc && c.completed);
+                    return (
+                      <div key={doc} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`doc-${doc}`}
+                          checked={isCompleted}
+                          onCheckedChange={async (checked) => {
+                            const current = processo.checklist || [];
+                            let next;
+                            if (current.find(c => c.label === doc)) {
+                              next = current.map(c => c.label === doc ? { ...c, completed: !!checked } : c);
+                            } else {
+                              next = [...current, { id: crypto.randomUUID(), label: doc, completed: !!checked }];
+                            }
+                            await supabase.from("processos").update({ checklist: next }).eq("id", processo.id);
+                            if (onRefresh) onRefresh();
+                          }}
+                        />
+                        <Label htmlFor={`doc-${doc}`} className="text-xs cursor-pointer">{doc}</Label>
+                      </div>
+                    );
+                  })}
+               </div>
             </div>
 
             <div className="space-y-3">
@@ -661,9 +807,16 @@ function EditalDetailsDialog({
                               )}
                             </div>
                             <p className="text-xs font-medium leading-tight mt-1">{item.descricao}</p>
-                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
                               <span>Qtd: <strong>{item.quantidade}</strong> {item.unidadeMedida}</span>
                               <span>Estimado: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valorUnitarioEstimado)}</strong></span>
+                              {isSelected && part.valor && (
+                                <span className={`font-bold ${
+                                  (item.valorUnitarioEstimado - parseFloat(part.valor)) > 0 ? "text-emerald-600" : "text-destructive"
+                                }`}>
+                                  Margem: {Math.round(((item.valorUnitarioEstimado - parseFloat(part.valor)) / item.valorUnitarioEstimado) * 100)}%
+                                </span>
+                              )}
                               <span>Total Est.: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valorTotalEstimado)}</strong></span>
                             </div>
                           </div>

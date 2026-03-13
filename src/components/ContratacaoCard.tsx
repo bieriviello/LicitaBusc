@@ -11,9 +11,12 @@ import {
     Gavel,
     Info,
     Scale,
-    Clock
+    Clock,
+    Sparkles
 } from "lucide-react";
 import { ArquivosDialog } from "./ArquivosDialog";
+import { AIAnalysisDialog } from "./AIAnalysisDialog";
+import { useState } from "react";
 import {
     Dialog,
     DialogContent,
@@ -65,6 +68,8 @@ function getSituacaoColor(situacao: string): string {
 }
 
 export function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
+    const [aiOpen, setAiOpen] = useState(false);
+    
     const pncpUrl = edital.link || (edital.portal === 'pncp' 
         ? `https://pncp.gov.br/app/editais/${edital.cnpj}/${edital.raw.anoCompraPncp}/${edital.raw.sequencialCompraPncp}`
         : `https://comprasnet.gov.br/livre/pregao/pregao_detalhes.asp?coduasg=${edital.raw.uasg || edital.raw.co_uasg}&numprp=${edital.raw.numero_aviso || edital.raw.numero}`);
@@ -266,6 +271,23 @@ export function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
                             Acompanhar Processo
                         </Button>
                     )}
+                    
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-primary hover:bg-primary/10"
+                        title="Análise com IA"
+                        onClick={() => setAiOpen(true)}
+                    >
+                        <Sparkles className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <AIAnalysisDialog 
+                        open={aiOpen} 
+                        onOpenChange={setAiOpen} 
+                        objeto={edital.objeto || ""} 
+                        raw={edital.raw}
+                    />
                 </div>
             </CardContent>
         </Card>

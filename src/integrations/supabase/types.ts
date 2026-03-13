@@ -134,6 +134,7 @@ export type Database = {
           responsavel_id: string | null
           status: string
           updated_at: string
+          checklist: Json | null
         }
         Insert: {
           created_at?: string
@@ -145,6 +146,7 @@ export type Database = {
           responsavel_id?: string | null
           status?: string
           updated_at?: string
+          checklist?: Json | null
         }
         Update: {
           created_at?: string
@@ -156,6 +158,7 @@ export type Database = {
           responsavel_id?: string | null
           status?: string
           updated_at?: string
+          checklist?: Json | null
         }
         Relationships: [
           {
@@ -348,6 +351,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "processos"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          message: string
+          type: string
+          read: boolean
+          link: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          message: string
+          type?: string
+          read?: boolean
+          link?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          message?: string
+          type?: string
+          read?: boolean
+          link?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }

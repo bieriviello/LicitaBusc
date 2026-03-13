@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { monitoramentoService } from "@/services/monitoramentoService";
 import { FileText, FolderOpen, FileCheck, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,6 +37,9 @@ export default function Dashboard() {
       });
       setRecentEditais(recentRes.data || []);
       setLoading(false);
+      
+      // Verifica monitoramentos em background (Simulação)
+      monitoramentoService.checkAllKeywords();
     };
     fetchData();
   }, []);
