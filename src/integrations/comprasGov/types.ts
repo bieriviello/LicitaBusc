@@ -204,6 +204,17 @@ export const MODALIDADES_PNCP = [
     { codigo: 13, nome: "Leilão - Presencial" },
 ] as const;
 
+export const MODALIDADES_LEGADO = [
+    { codigo: 1, nome: "Convite" },
+    { codigo: 2, nome: "Tomada de Preços" },
+    { codigo: 3, nome: "Concorrência" },
+    { codigo: 4, nome: "Concurso" },
+    { codigo: 5, nome: "Pregão" },
+    { codigo: 6, nome: "Dispensa de Licitação" },
+    { codigo: 7, nome: "Inexigibilidade" },
+    { codigo: 20, nome: "Concorrência Internacional" },
+] as const;
+
 export const UFS_BRASIL = [
     "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
     "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",

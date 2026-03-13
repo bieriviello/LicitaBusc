@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { MODALIDADES_PNCP, UFS_BRASIL } from "@/integrations/comprasGov/types";
+import { MODALIDADES_PNCP, MODALIDADES_LEGADO, UFS_BRASIL } from "@/integrations/comprasGov/types";
 import { Search, RotateCcw, Plus, Globe } from "lucide-react";
 
 interface ComprasGovFiltersProps {
@@ -41,11 +41,20 @@ export function ComprasGovFilters({ onBuscar, onSaveMonitoramento, loading }: Co
     const defaults = getDefaultDates();
     const [dataInicial, setDataInicial] = useState(defaults.dataInicial);
     const [dataFinal, setDataFinal] = useState(defaults.dataFinal);
-    const [modalidade, setModalidade] = useState("6"); // Pregão Eletrônico
+    const [modulo, setModulo] = useState<'pncp' | 'legado' | 'pregao'>('pncp');
+    const [palavraChave, setPalavraChave] = useState("");
+    const [modalidade, setModalidade] = useState("6");
     const [uf, setUf] = useState("");
     const [cnpjOrgao, setCnpjOrgao] = useState("");
-    const [palavraChave, setPalavraChave] = useState("");
-    const [modulo, setModulo] = useState<'pncp' | 'legado' | 'pregao'>('pncp');
+
+    // Ajusta a modalidade ao trocar de módulo para evitar erros de código inválido
+    useEffect(() => {
+        if (modulo === 'legado') {
+            setModalidade("5"); // Pregão (Legado)
+        } else if (modulo === 'pncp') {
+            setModalidade("6"); // Pregão Eletrônico (PNCP)
+        }
+    }, [modulo]);
 
     const handleBuscar = () => {
         onBuscar({
@@ -63,7 +72,7 @@ export function ComprasGovFilters({ onBuscar, onSaveMonitoramento, loading }: Co
         const defaults = getDefaultDates();
         setDataInicial(defaults.dataInicial);
         setDataFinal(defaults.dataFinal);
-        setModalidade("6");
+        setModalidade(modulo === 'legado' ? "5" : "6");
         setUf("");
         setCnpjOrgao("");
         setPalavraChave("");
@@ -165,7 +174,7 @@ export function ComprasGovFilters({ onBuscar, onSaveMonitoramento, loading }: Co
                             <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent>
-                            {MODALIDADES_PNCP.map((m) => (
+                            {(modulo === 'legado' ? MODALIDADES_LEGADO : MODALIDADES_PNCP).map((m) => (
                                 <SelectItem key={m.codigo} value={String(m.codigo)}>
                                     {m.nome}
                                 </SelectItem>
