@@ -13,7 +13,10 @@ import {
   FileText,
   Loader2,
   Check,
-  Save
+  Save,
+  Search,
+  X,
+  Sparkles
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -39,6 +42,20 @@ import { UasgProfile } from "@/components/UasgProfile";
 import { FileUpload } from "@/components/FileUpload";
 import { pdfService } from "@/services/pdfService";
 import { AIAnalysisDialog } from "@/components/AIAnalysisDialog";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  DragEndEvent,
+  DragStartEvent
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 interface Processo {
   id: string;
@@ -111,10 +128,42 @@ export default function Processos() {
   const [uasgProfileOpen, setUasgProfileOpen] = useState(false);
   const [selectedOrgao, setSelectedOrgao] = useState("");
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const processId = active.id as string;
+    const newStatus = over.id as string;
+
+    const processo = processos.find(p => p.id === processId);
+    if (processo && processo.status !== newStatus && STATUS_OPTIONS.some(s => s.value === newStatus)) {
+      // Optimistic update
+      setProcessos(prev => prev.map(p => p.id === processId ? { ...p, status: newStatus } : p));
+
+      const { error } = await supabase.from('processos').update({ status: newStatus }).eq('id', processId);
+      if (error) {
+        toast({ title: "Erro ao mover", variant: "destructive" });
+        fetchData(); // revert na UI caso falhe
+      }
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
-    
+
     // 1. Fetch processes and editals first (this is the core data)
     const { data: procData, error: procError } = await supabase
       .from("processos")
@@ -129,14 +178,14 @@ export default function Processos() {
 
     if (procError) {
       console.error("Erro ao buscar processos:", procError);
-      toast({ 
-        title: "Erro ao carregar processos", 
-        description: procError.message, 
-        variant: "destructive" 
+      toast({
+        title: "Erro ao carregar processos",
+        description: procError.message,
+        variant: "destructive"
       });
     } else if (procData) {
       setProcessos(procData as unknown as Processo[]);
-      
+
       // 3. Try to fetch participation counts separately
       // This way, if the table 'participacao_itens' doesn't exist yet, 
       // it won't break the main processes list.
@@ -144,14 +193,14 @@ export default function Processos() {
         const { data: countsData, error: countsError } = await supabase
           .from("participacao_itens")
           .select("processo_id");
-          
+
         if (!countsError && countsData) {
           // Manually calculate counts
           const countsMap: Record<string, number> = {};
           countsData.forEach((item: any) => {
             countsMap[item.processo_id] = (countsMap[item.processo_id] || 0) + 1;
           });
-          
+
           setProcessos(prev => prev.map(p => ({
             ...p,
             participacao_itens: countsMap[p.id] ? [{ count: countsMap[p.id] }] : []
@@ -205,6 +254,16 @@ export default function Processos() {
     const opt = STATUS_OPTIONS.find((o) => o.value === status);
     return opt ? { label: opt.label, color: opt.color } : { label: status, color: "bg-muted text-muted-foreground" };
   };
+
+  const processosFiltrados = processos.filter((p) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      p.numero_interno?.toLowerCase().includes(term) ||
+      p.editais?.objeto?.toLowerCase().includes(term) ||
+      p.editais?.orgao?.toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -306,6 +365,28 @@ export default function Processos() {
         )}
       </div>
 
+      {/* Search bar */}
+      {!loading && processos.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar por processo, edital ou órgão..."
+            className="w-full h-9 pl-9 pr-8 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Loading */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -329,128 +410,194 @@ export default function Processos() {
         </div>
       )}
 
-      {/* Kanban Board */}
-      {!loading && processos.length > 0 && (
-        <div className="flex gap-4 overflow-x-auto pb-6 h-[calc(100vh-250px)] custom-scrollbar">
-          {STATUS_OPTIONS.map((col) => {
-            const processosNaColuna = processos.filter(p => p.status === col.value);
-            return (
-              <div key={col.value} className="flex-shrink-0 w-80 flex flex-col gap-4 bg-muted/30 rounded-xl p-3 border border-border/50">
-                <div className="flex items-center justify-between px-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{col.label}</h3>
-                    <Badge variant="secondary" className="rounded-full px-2 py-0 h-5 text-[10px]">{processosNaColuna.length}</Badge>
-                  </div>
-                </div>
+      {/* Sem resultados na busca */}
+      {!loading && processos.length > 0 && searchTerm && processosFiltrados.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Search className="h-8 w-8 opacity-30 mb-3" />
+          <p className="text-sm font-medium">Nenhum processo encontrado para "{searchTerm}"</p>
+          <button onClick={() => setSearchTerm("")} className="text-xs text-primary mt-2 hover:underline">Limpar busca</button>
+        </div>
+      )}
 
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                  {processosNaColuna.map((proc) => {
-                    const badge = getStatusBadge(proc.status);
-                    const completedItems = proc.checklist?.filter(c => c.completed).length || 0;
-                    const totalItems = proc.checklist?.length || 0;
-                    
-                    return (
-                      <Card 
-                        key={proc.id} 
-                        className="border-border/50 hover:shadow-md transition-all duration-200 cursor-pointer group bg-card"
+      {/* Kanban Board */}
+      {!loading && processos.length > 0 && (!searchTerm || processosFiltrados.length > 0) && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex gap-4 overflow-x-auto pb-6 h-[calc(100vh-250px)] custom-scrollbar">
+            {STATUS_OPTIONS.map((col) => {
+              const processosNaColuna = processosFiltrados.filter(p => p.status === col.value);
+              return (
+                <DroppableColumn key={col.value} col={col} count={processosNaColuna.length}>
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                    {processosNaColuna.map((proc) => (
+                      <DraggableProcessoCard
+                        key={proc.id}
+                        proc={proc}
                         onClick={() => {
                           setSelectedProcesso(proc);
                           setDetailsOpen(true);
                         }}
-                      >
-                        <CardContent className="p-3 space-y-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
-                              {proc.numero_interno}
-                            </p>
-                            {proc.editais && (
-                              <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
-                                {proc.editais.objeto}
-                              </p>
-                            )}
-                          </div>
+                        onOrgaoClick={(orgao) => {
+                          setSelectedOrgao(orgao);
+                          setUasgProfileOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+                </DroppableColumn>
+              );
+            })}
+          </div>
 
-                          <div className="space-y-1.5 text-[10px] text-muted-foreground">
-                            {proc.editais && (
-                              <div 
-                                className="flex items-center gap-1.5 hover:text-primary transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedOrgao(proc.editais!.orgao);
-                                  setUasgProfileOpen(true);
-                                }}
-                              >
-                                <Building2 className="h-3 w-3 text-primary/60" />
-                                <span className="truncate border-b border-dotted border-muted-foreground/30 hover:border-primary/50">{proc.editais.orgao}</span>
-                              </div>
-                            )}
-                            {proc.prazo && (
-                              <div className="flex items-center gap-1.5">
-                                <Calendar className="h-3 w-3 text-primary/60" />
-                                <span className={new Date(proc.prazo) < new Date() ? 'text-destructive font-semibold' : ''}>
-                                  Prazo: {new Date(proc.prazo).toLocaleDateString("pt-BR")}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          {totalItems > 0 && (
-                            <div className="pt-2 border-t border-border/30">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-[9px] font-bold text-muted-foreground">DOCUMENTOS</span>
-                                <span className="text-[9px] font-bold text-primary">{Math.round((completedItems/totalItems)*100)}%</span>
-                              </div>
-                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                                <div 
-                                  className="bg-primary h-full transition-all" 
-                                  style={{ width: `${(completedItems/totalItems)*100}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {proc.participacao_itens && proc.participacao_itens[0]?.count > 0 && (
-                            <Badge variant="outline" className="w-full justify-center text-[9px] py-1 bg-primary/5 text-primary border-primary/20 gap-1 mt-1">
-                              <Check className="h-2.5 w-2.5" />
-                              {proc.participacao_itens[0].count} ITENS VINCULADOS
-                            </Badge>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <DragOverlay>
+            {activeId ? (
+              <DraggableProcessoCard
+                proc={processos.find(p => p.id === activeId)!}
+                onClick={() => { }}
+                onOrgaoClick={() => { }}
+                isOverlay={true}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* Detalhes do Edital Dialog */}
-      <EditalDetailsDialog 
-        processo={selectedProcesso} 
-        open={detailsOpen} 
-        onOpenChange={setDetailsOpen} 
+      <EditalDetailsDialog
+        processo={selectedProcesso}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
         onRefresh={fetchData}
       />
 
-      <UasgProfile 
-        orgao={selectedOrgao} 
-        open={uasgProfileOpen} 
-        onOpenChange={setUasgProfileOpen} 
+      <UasgProfile
+        orgao={selectedOrgao}
+        open={uasgProfileOpen}
+        onOpenChange={setUasgProfileOpen}
       />
     </div>
   );
 }
 
-function EditalDetailsDialog({ 
-  processo, 
-  open, 
+function DroppableColumn({ col, count, children }: { col: any; count: number; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: col.value,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-shrink-0 w-80 flex flex-col gap-4 rounded-xl p-3 border transition-colors ${isOver ? "bg-primary/10 border-primary" : "bg-muted/30 border-border/50"
+        }`}
+    >
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{col.label}</h3>
+          <Badge variant="secondary" className="rounded-full px-2 py-0 h-5 text-[10px]">{count}</Badge>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DraggableProcessoCard({ proc, onClick, onOrgaoClick, isOverlay = false }: any) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: proc.id,
+    data: proc,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging && !isOverlay ? 0.4 : 1,
+    zIndex: isDragging ? 999 : 'auto',
+  };
+
+  const completedItems = proc.checklist?.filter((c: any) => c.completed).length || 0;
+  const totalItems = proc.checklist?.length || 0;
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <Card
+        className={`border-border/50 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing group bg-card ${isOverlay ? 'ring-2 ring-primary shadow-2xl rotate-2' : ''
+          }`}
+        onClick={onClick}
+      >
+        <CardContent className="p-3 space-y-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+              {proc.numero_interno}
+            </p>
+            {proc.editais && (
+              <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
+                {proc.editais.objeto}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5 text-[10px] text-muted-foreground">
+            {proc.editais && (
+              <div
+                className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                onPointerDown={(e) => e.stopPropagation()} // Evita arrastar se for clicar no órgão
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOrgaoClick(proc.editais!.orgao);
+                }}
+              >
+                <Building2 className="h-3 w-3 text-primary/60" />
+                <span className="truncate border-b border-dotted border-muted-foreground/30 hover:border-primary/50">{proc.editais.orgao}</span>
+              </div>
+            )}
+            {proc.prazo && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 text-primary/60" />
+                <span className={new Date(proc.prazo) < new Date() ? 'text-destructive font-semibold' : ''}>
+                  Prazo: {new Date(proc.prazo).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {totalItems > 0 && (
+            <div className="pt-2 border-t border-border/30">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] font-bold text-muted-foreground">DOCUMENTOS</span>
+                <span className="text-[9px] font-bold text-primary">{Math.round((completedItems / totalItems) * 100)}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                <div
+                  className="bg-primary h-full transition-all"
+                  style={{ width: `${(completedItems / totalItems) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {proc.participacao_itens && proc.participacao_itens[0]?.count > 0 && (
+            <Badge variant="outline" className="w-full justify-center text-[9px] py-1 bg-primary/5 text-primary border-primary/20 gap-1 mt-1">
+              <Check className="h-2.5 w-2.5" />
+              {proc.participacao_itens[0].count} ITENS VINCULADOS
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function EditalDetailsDialog({
+  processo,
+  open,
   onOpenChange,
   onRefresh
-}: { 
-  processo: Processo | null, 
-  open: boolean, 
+}: {
+  processo: Processo | null,
+  open: boolean,
   onOpenChange: (open: boolean) => void,
   onRefresh?: () => void
 }) {
@@ -460,7 +607,7 @@ function EditalDetailsDialog({
 
   const edital = processo?.editais;
   const raw = edital?.raw_json as any;
-  
+
   const { data: itens, isLoading: loadingItens } = useItensPncp(
     raw?.orgaoEntidadeCnpj,
     raw?.anoCompraPncp,
@@ -524,12 +671,12 @@ function EditalDetailsDialog({
   const handleSave = async () => {
     if (!processo?.id) return;
     setSavingParticipacoes(true);
-    
+
     try {
       // Deleta as que não estão mais selecionadas ou atualiza todas
       // Para simplificar, vou deletar todas do processo e reinserir as selecionadas
       // Ou melhor, fazer um upsert para as selecionadas e deletar as não selecionadas
-      
+
       const selecionados = Object.entries(participacoes)
         .filter(([_, data]) => data.selecionado)
         .map(([num, data]) => {
@@ -547,18 +694,18 @@ function EditalDetailsDialog({
 
       // 1. Deletar items do processo que não estão na lista de selecionados
       const numsSelecionados = selecionados.map(s => s.numero_item);
-      
+
       if (numsSelecionados.length > 0) {
         await supabase
           .from("participacao_itens")
           .delete()
           .eq("processo_id", processo.id)
           .not("numero_item", "in", `(${numsSelecionados.join(',')})`);
-          
+
         const { error: upsertError } = await supabase
           .from("participacao_itens")
           .upsert(selecionados, { onConflict: 'processo_id, numero_item' });
-          
+
         if (upsertError) throw upsertError;
       } else {
         // Se nenhum selecionado, deleta todos do processo
@@ -572,9 +719,9 @@ function EditalDetailsDialog({
         title: "✅ Sucesso",
         description: "Participação atualizada com sucesso.",
       });
-      
+
       if (onRefresh) onRefresh();
-      
+
     } catch (error: any) {
       toast({
         title: "Erro ao salvar",
@@ -597,7 +744,7 @@ function EditalDetailsDialog({
             </div>
           </DialogTitle>
         </DialogHeader>
-        
+
         {processo && (
           <div className="space-y-6 pt-4">
             <div className="grid grid-cols-2 gap-4">
@@ -623,129 +770,128 @@ function EditalDetailsDialog({
                 <p className="text-[10px] font-medium text-muted-foreground uppercase">Data de Abertura</p>
                 <div className="flex items-center gap-1.5 text-sm">
                   <Calendar className="h-4 w-4 text-primary/60" />
-                  {raw?.dataAberturaPropostaPncp 
-                    ? new Date(raw.dataAberturaPropostaPncp).toLocaleDateString("pt-BR") 
+                  {raw?.dataAberturaPropostaPncp
+                    ? new Date(raw.dataAberturaPropostaPncp).toLocaleDateString("pt-BR")
                     : "Não informada"}
                 </div>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase">Valor Estimado</p>
                 <p className="text-sm font-bold text-emerald-600">
-                  {raw?.valorTotalEstimado 
-                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(raw.valorTotalEstimado) 
+                  {raw?.valorTotalEstimado
+                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(raw.valorTotalEstimado)
                     : "Não informado"}
                 </p>
-              </div>
               </div>
             </div>
 
             {/* Documentos Anexados */}
             <div className="space-y-3 p-4 border rounded-lg bg-card">
-               <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Documentos Adicionais (PDF/Edital)
-                  </h3>
-                  <FileUpload processoId={processo.id} onUploadComplete={() => onRefresh && onRefresh()} />
-               </div>
-               
-               <div className="space-y-2">
-                  {processo.documentos && processo.documentos.length > 0 ? (
-                    processo.documentos.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-2 bg-muted/20 rounded border border-border/10">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <FileText className="h-4 w-4 text-primary/60 shrink-0" />
-                          <span className="text-xs truncate">{doc.nome}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-7 text-[10px] gap-1 hover:text-primary"
-                            onClick={async () => {
-                              setAnalyzing(true);
-                              try {
-                                const response = await fetch(doc.url);
-                                const blob = await response.blob();
-                                const file = new File([blob], doc.nome, { type: "application/pdf" });
-                                const text = await pdfService.extractText(file);
-                                setPdfText(text);
-                                setAiOpen(true);
-                              } catch (err) {
-                                toast({ title: "Erro na leitura", description: "Não foi possível ler este PDF.", variant: "destructive" });
-                              } finally {
-                                setAnalyzing(false);
-                              }
-                            }}
-                            disabled={analyzing}
-                          >
-                            {analyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                            Analisar com IA
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-7 w-7 p-0"
-                            onClick={() => window.open(doc.url, "_blank")}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Documentos Adicionais (PDF/Edital)
+                </h3>
+                <FileUpload processoId={processo.id} onUploadComplete={() => onRefresh && onRefresh()} />
+              </div>
+
+              <div className="space-y-2">
+                {processo.documentos && processo.documentos.length > 0 ? (
+                  processo.documentos.map(doc => (
+                    <div key={doc.id} className="flex items-center justify-between p-2 bg-muted/20 rounded border border-border/10">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <FileText className="h-4 w-4 text-primary/60 shrink-0" />
+                        <span className="text-xs truncate">{doc.nome}</span>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-[10px] text-muted-foreground italic">Nenhum documento anexado ainda.</p>
-                  )}
-               </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[10px] gap-1 hover:text-primary"
+                          onClick={async () => {
+                            setAnalyzing(true);
+                            try {
+                              const response = await fetch(doc.url);
+                              const blob = await response.blob();
+                              const file = new File([blob], doc.nome, { type: "application/pdf" });
+                              const text = await pdfService.extractText(file);
+                              setPdfText(text);
+                              setAiOpen(true);
+                            } catch (err) {
+                              toast({ title: "Erro na leitura", description: "Não foi possível ler este PDF.", variant: "destructive" });
+                            } finally {
+                              setAnalyzing(false);
+                            }
+                          }}
+                          disabled={analyzing}
+                        >
+                          {analyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          Analisar com IA
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => window.open(doc.url, "_blank")}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[10px] text-muted-foreground italic">Nenhum documento anexado ainda.</p>
+                )}
+              </div>
             </div>
 
             {/* AI Analysis Dialog inside process details */}
-            <AIAnalysisDialog 
-              open={aiOpen} 
-              onOpenChange={setAiOpen} 
-              objeto={edital?.objeto || ""} 
-              raw={edital?.raw_json} 
+            <AIAnalysisDialog
+              open={aiOpen}
+              onOpenChange={setAiOpen}
+              objeto={edital?.objeto || ""}
+              raw={edital?.raw_json}
               pdfText={pdfText}
             />
 
             {/* Checklist de Documentos */}
             <div className="space-y-3 p-4 border rounded-lg bg-card">
-               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                 <FileText className="h-4 w-4" />
-                 Checklist de Documentação
-               </h3>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[
-                    "Balanço Patrimonial", 
-                    "Certidões Negativas (Federal, RS, Municipal)", 
-                    "Atestados de Capacidade Técnica",
-                    "Contrato Social / Estatuto",
-                    "Certidão de Falência",
-                    "CRC / Cadastro no Portal"
-                  ].map(doc => {
-                    const isCompleted = !!processo.checklist?.find(c => c.label === doc && c.completed);
-                    return (
-                      <div key={doc} className="flex items-center gap-2">
-                        <Checkbox 
-                          id={`doc-${doc}`}
-                          checked={isCompleted}
-                          onCheckedChange={async (checked) => {
-                            const current = processo.checklist || [];
-                            let next;
-                            if (current.find(c => c.label === doc)) {
-                              next = current.map(c => c.label === doc ? { ...c, completed: !!checked } : c);
-                            } else {
-                              next = [...current, { id: crypto.randomUUID(), label: doc, completed: !!checked }];
-                            }
-                            await supabase.from("processos").update({ checklist: next }).eq("id", processo.id);
-                            if (onRefresh) onRefresh();
-                          }}
-                        />
-                        <Label htmlFor={`doc-${doc}`} className="text-xs cursor-pointer">{doc}</Label>
-                      </div>
-                    );
-                  })}
-               </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Checklist de Documentação
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  "Balanço Patrimonial",
+                  "Certidões Negativas (Federal, RS, Municipal)",
+                  "Atestados de Capacidade Técnica",
+                  "Contrato Social / Estatuto",
+                  "Certidão de Falência",
+                  "CRC / Cadastro no Portal"
+                ].map(doc => {
+                  const isCompleted = !!processo.checklist?.find(c => c.label === doc && c.completed);
+                  return (
+                    <div key={doc} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`doc-${doc}`}
+                        checked={isCompleted}
+                        onCheckedChange={async (checked) => {
+                          const current = processo.checklist || [];
+                          let next;
+                          if (current.find(c => c.label === doc)) {
+                            next = current.map(c => c.label === doc ? { ...c, completed: !!checked } : c);
+                          } else {
+                            next = [...current, { id: crypto.randomUUID(), label: doc, completed: !!checked }];
+                          }
+                          await supabase.from("processos").update({ checklist: next }).eq("id", processo.id);
+                          if (onRefresh) onRefresh();
+                        }}
+                      />
+                      <Label htmlFor={`doc-${doc}`} className="text-xs cursor-pointer">{doc}</Label>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -771,30 +917,28 @@ function EditalDetailsDialog({
                     const isSelected = !!part?.selecionado;
 
                     return (
-                      <div 
-                        key={item.numeroItem} 
-                        className={`p-3 bg-card border rounded-md transition-all ${
-                          isSelected ? 'border-primary shadow-sm bg-primary/5' : 'hover:border-primary/30'
-                        }`}
+                      <div
+                        key={item.numeroItem}
+                        className={`p-3 bg-card border rounded-md transition-all ${isSelected ? 'border-primary shadow-sm bg-primary/5' : 'hover:border-primary/30'
+                          }`}
                       >
                         <div className="flex gap-4">
                           <div className="pt-1">
-                            <Checkbox 
-                              checked={isSelected} 
+                            <Checkbox
+                              checked={isSelected}
                               onCheckedChange={() => toggleItem(item)}
                             />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start gap-2">
-                              <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                isSelected ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
-                              }`}>
+                              <span className={`flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${isSelected ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
+                                }`}>
                                 ITEM {item.numeroItem}
                               </span>
                               {isSelected && (
                                 <div className="flex items-center gap-2">
                                   <Label htmlFor={`val-${item.numeroItem}`} className="text-[10px] font-bold text-primary">MEU VALOR:</Label>
-                                  <Input 
+                                  <Input
                                     id={`val-${item.numeroItem}`}
                                     size={1}
                                     className="h-7 w-24 text-xs font-bold"
@@ -811,9 +955,8 @@ function EditalDetailsDialog({
                               <span>Qtd: <strong>{item.quantidade}</strong> {item.unidadeMedida}</span>
                               <span>Estimado: <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valorUnitarioEstimado)}</strong></span>
                               {isSelected && part.valor && (
-                                <span className={`font-bold ${
-                                  (item.valorUnitarioEstimado - parseFloat(part.valor)) > 0 ? "text-emerald-600" : "text-destructive"
-                                }`}>
+                                <span className={`font-bold ${(item.valorUnitarioEstimado - parseFloat(part.valor)) > 0 ? "text-emerald-600" : "text-destructive"
+                                  }`}>
                                   Margem: {Math.round(((item.valorUnitarioEstimado - parseFloat(part.valor)) / item.valorUnitarioEstimado) * 100)}%
                                 </span>
                               )}
@@ -833,23 +976,23 @@ function EditalDetailsDialog({
             </div>
 
             <div className="flex justify-end gap-3 pt-2 border-t mt-4">
-               <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => onOpenChange(false)}
                 className="text-xs h-9"
-               >
-                 Cancelar
-               </Button>
-               <Button 
+              >
+                Cancelar
+              </Button>
+              <Button
                 onClick={handleSave}
                 disabled={savingParticipacoes}
                 className="text-xs h-9 gap-2"
-               >
-                 {savingParticipacoes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                 Salvar Participação
-               </Button>
+              >
+                {savingParticipacoes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Salvar Participação
+              </Button>
             </div>
-            
+
             {processo.observacoes && (
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase">Observações Internas</p>
