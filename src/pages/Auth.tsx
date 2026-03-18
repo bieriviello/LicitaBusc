@@ -29,10 +29,10 @@ export default function Auth() {
           description: "Verifique seu e-mail para confirmar a conta.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Erro",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro",
         variant: "destructive",
       });
     } finally {

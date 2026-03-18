@@ -25,9 +25,15 @@ export default function Editais() {
     const { toast } = useToast();
     const navigate = useNavigate();
 
+    interface Monitoramento {
+        id: string;
+        nome: string;
+        palavra_chave: string;
+    }
+
     const [filtros, setFiltros] = useState<FiltrosUnificados | null>(null);
     const [pagina, setPagina] = useState(1);
-    const [monitoramentos, setMonitoramentos] = useState<any[]>([]);
+    const [monitoramentos, setMonitoramentos] = useState<Monitoramento[]>([]);
 
     const { data, isLoading, isError, error } = useEditaisUnificados(
         filtros ? { ...filtros, pagina } : null
@@ -106,10 +112,10 @@ export default function Editais() {
 
             toast({ title: "✅ Importação concluída!", description: "Edital e processo criados." });
             navigate("/processos");
-        } catch (err: any) {
+        } catch (err: unknown) {
             toast({
                 title: "Erro ao importar",
-                description: err.message || "Erro desconhecido",
+                description: err instanceof Error ? err.message : "Erro desconhecido",
                 variant: "destructive",
             });
         }
@@ -256,7 +262,7 @@ export default function Editais() {
                     </div>
                     <p className="text-base font-medium text-destructive">Erro na consulta</p>
                     <p className="text-sm mt-1 max-w-md text-center">
-                        {(error as any)?.message || "Não foi possível consultar as APIs."}
+                        {(error as Error)?.message || "Não foi possível consultar as APIs."}
                     </p>
                 </div>
             )}

@@ -85,8 +85,8 @@ export default function Propostas() {
       setNovoStatus("Rascunho");
       setNovaMargem("");
       setNovosImpostos("");
-    } catch (error: any) {
-      toast({ title: "Erro ao criar proposta", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Erro ao criar proposta", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
     }
   };
 
@@ -95,8 +95,8 @@ export default function Propostas() {
       try {
         await deletarProposta.mutateAsync(id);
         toast({ title: "Proposta removida!" });
-      } catch (error: any) {
-        toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
+      } catch (error: unknown) {
+        toast({ title: "Erro ao remover", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
       }
     }
   };

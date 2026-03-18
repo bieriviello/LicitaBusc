@@ -46,7 +46,7 @@ async function fetchApi<T>(path: string, params: Record<string, unknown>): Promi
 
     if (!response.ok) {
         const errorText = await response.text().catch(() => "Erro desconhecido");
-        const error = new Error(`Erro na API Compras.gov.br (${response.status}): ${errorText}`) as any;
+        const error = new Error(`Erro na API Compras.gov.br (${response.status}): ${errorText}`) as Error & { details: string };
         error.details = `URL: ${url} | Params: ${JSON.stringify(params)}`;
         throw error;
     }

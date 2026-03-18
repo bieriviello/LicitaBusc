@@ -18,17 +18,33 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+interface RawData {
+    unidadeOrgaoNomeUnidade?: string;
+    [key: string]: unknown;
+}
+
+interface AnalysisData {
+    resumo: string;
+    exigencias: string[];
+    riscos: string[];
+    oportunidades: string[];
+    datasChave: {
+        visitaTecnica: string;
+        impugnacao: string;
+    };
+}
+
 interface AIAnalysisProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     objeto: string;
-    raw: any;
+    raw: RawData;
     pdfText?: string;
 }
 
 export function AIAnalysisDialog({ open, onOpenChange, objeto, raw, pdfText }: AIAnalysisProps) {
     const [loading, setLoading] = useState(true);
-    const [analysis, setAnalysis] = useState<any>(null);
+    const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
 
     useEffect(() => {
         if (open) {
@@ -40,6 +56,7 @@ export function AIAnalysisDialog({ open, onOpenChange, objeto, raw, pdfText }: A
             }, 2500);
             return () => clearTimeout(timer);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, objeto]);
 
     const generateMockAnalysis = () => {

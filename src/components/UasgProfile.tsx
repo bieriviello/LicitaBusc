@@ -38,6 +38,7 @@ export function UasgProfile({ orgao, open, onOpenChange }: UasgProfileProps) {
     if (open && orgao) {
       fetchHistory();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, orgao]);
 
   const fetchHistory = async () => {

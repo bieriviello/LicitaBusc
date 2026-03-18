@@ -27,6 +27,32 @@ interface Metrics {
   propostasRascunho: number;
 }
 
+interface RecentEdital {
+  id: string;
+  objeto: string;
+  orgao: string;
+  numero: string;
+  status: string;
+}
+
+interface ProcessoStatusCount {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface PrazoUrgente {
+  id: string;
+  numero_interno: string;
+  status: string;
+  prazo: string;
+  editais: {
+    objeto: string;
+    orgao: string;
+  };
+  diasRestantes: number;
+}
+
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   triagem:               { label: "Triagem",          color: "#94a3b8" },
   analise_tecnica:       { label: "Análise Téc.",     color: "#60a5fa" },
@@ -42,9 +68,9 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState<Metrics>({
     editaisAtivos: 0, processosTotal: 0, propostasEnviadas: 0, propostasRascunho: 0
   });
-  const [recentEditais, setRecentEditais] = useState<any[]>([]);
-  const [processosPorStatus, setProcessosPorStatus] = useState<any[]>([]);
-  const [prazosUrgentes, setPrazosUrgentes] = useState<any[]>([]);
+  const [recentEditais, setRecentEditais] = useState<RecentEdital[]>([]);
+  const [processosPorStatus, setProcessosPorStatus] = useState<ProcessoStatusCount[]>([]);
+  const [prazosUrgentes, setPrazosUrgentes] = useState<PrazoUrgente[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,13 +90,14 @@ export default function Dashboard() {
         propostasEnviadas: propostas.filter((p) => p.status === "enviada").length,
         propostasRascunho: propostas.filter((p) => p.status === "rascunho").length,
       });
-      setRecentEditais(recentRes.data || []);
+      setRecentEditais((recentRes.data as RecentEdital[]) || []);
 
       // Contagem por status
       const allProcessos = allProcessosRes.data || [];
       const counts: Record<string, number> = {};
-      allProcessos.forEach((p: any) => {
-        counts[p.status] = (counts[p.status] || 0) + 1;
+      allProcessos.forEach((p) => {
+        const s = String(p.status);
+        counts[s] = (counts[s] || 0) + 1;
       });
       const chartData = Object.entries(STATUS_LABELS).map(([key, val]) => ({
         name: val.label,
@@ -82,11 +109,11 @@ export default function Dashboard() {
       // Prazos urgentes (próximos 7 dias)
       const hoje = new Date();
       const urgentes = allProcessos
-        .filter((p: any) => p.prazo && !["homologado", "cancelado"].includes(p.status))
-        .map((p: any) => ({ ...p, diasRestantes: differenceInDays(parseISO(p.prazo), hoje) }))
-        .filter((p: any) => p.diasRestantes >= 0 && p.diasRestantes <= 7)
-        .sort((a: any, b: any) => a.diasRestantes - b.diasRestantes)
-        .slice(0, 5);
+        .filter((p) => p.prazo && !["homologado", "cancelado"].includes(String(p.status)))
+        .map((p) => ({ ...p, diasRestantes: differenceInDays(parseISO(String(p.prazo)), hoje) }))
+        .filter((p) => p.diasRestantes >= 0 && p.diasRestantes <= 7)
+        .sort((a, b) => a.diasRestantes - b.diasRestantes)
+        .slice(0, 5) as PrazoUrgente[];
       setPrazosUrgentes(urgentes);
 
       setLoading(false);
@@ -272,7 +299,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="divide-y divide-border/40">
-                {prazosUrgentes.map((p: any) => (
+                {prazosUrgentes.map((p) => (
                   <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold truncate">{p.numero_interno}</p>

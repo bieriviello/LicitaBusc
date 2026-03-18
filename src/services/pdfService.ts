@@ -17,6 +17,7 @@ export const pdfService = {
                         const page = await pdf.getPage(i);
                         const textContent = await page.getTextContent();
                         const pageText = textContent.items
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             .map((item: any) => item.str)
                             .join(" ");
                         fullText += pageText + "\n";

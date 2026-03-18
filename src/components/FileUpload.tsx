@@ -62,10 +62,10 @@ export function FileUpload({ processoId, onUploadComplete }: FileUploadProps) {
             });
 
             onUploadComplete();
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: "Erro no upload",
-                description: error.message || "Ocorreu um erro ao enviar o arquivo.",
+                description: error instanceof Error ? error.message : "Ocorreu um erro ao enviar o arquivo.",
                 variant: "destructive"
             });
         } finally {

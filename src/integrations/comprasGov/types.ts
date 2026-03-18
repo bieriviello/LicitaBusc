@@ -122,7 +122,7 @@ export interface BaseEdital {
     link?: string;
     numeroControle?: string;
     processo?: string;
-    raw: any;
+    raw: Record<string, unknown>;
 }
 
 // ===========================

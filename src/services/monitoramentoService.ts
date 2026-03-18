@@ -11,7 +11,7 @@ export const monitoramentoService = {
 
         if (kError || !keywords) return [];
 
-        let allMatches: any[] = [];
+        const allMatches: { title: string; message: string; link: string }[] = [];
 
         // 2. For each keyword, search the API (Simulation)
         // In a real scenario, this would be a CRON job in a Supabase Edge Function

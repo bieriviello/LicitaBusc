@@ -62,7 +62,14 @@ export function AppSidebar() {
   const { profile, role, signOut, user } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const [notifications, setNotifications] = useState<any[]>([]);
+  interface Notification {
+    id: string;
+    title: string;
+    message: string;
+    read: boolean;
+    created_at: string;
+  }
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     if (user) {
