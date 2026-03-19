@@ -61,6 +61,8 @@ import { STATUS_OPTIONS } from '@/types/processos';
 import { EditalDetailsDialog } from '@/components/Processos/EditalDetailsDialog';
 import { DraggableProcessoCard } from '@/components/Processos/DraggableProcessoCard';
 import { DroppableColumn } from '@/components/Processos/DroppableColumn';
+import { useProcessos, useEditaisDropdown, useCreateProcesso, useUpdateProcessoStatus } from "@/hooks/useProcessos";
+
 
 import { useSearchParams } from "react-router-dom";
 export default function Processos() {
@@ -68,9 +70,12 @@ export default function Processos() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [processos, setProcessos] = useState<Processo[]>([]);
-  const [editais, setEditais] = useState<Edital[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: processos = [], isLoading: loadingProcessos, refetch } = useProcessos();
+  const { data: editais = [], isLoading: loadingEditais } = useEditaisDropdown();
+  const { mutateAsync: createProcesso } = useCreateProcesso();
+  const { mutateAsync: updateProcessoStatus } = useUpdateProcessoStatus();
+
+  const loading = loadingProcessos || loadingEditais;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedProcesso, setSelectedProcesso] = useState<Processo | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -107,77 +112,17 @@ export default function Processos() {
 
     const processo = processos.find(p => p.id === processId);
     if (processo && processo.status !== newStatus && STATUS_OPTIONS.some(s => s.value === newStatus)) {
-      const oldStatus = processo.status;
-      // Optimistic update
-      setProcessos(prev => prev.map(p => p.id === processId ? { ...p, status: newStatus } : p));
-
-      const { error } = await supabase.from('processos').update({ status: newStatus }).eq('id', processId);
-      if (error) {
-        toast({ title: "Erro ao mover", variant: "destructive" });
-        // Revert local state to avoid refetching
-        setProcessos(prev => prev.map(p => p.id === processId ? { ...p, status: oldStatus } : p));
-      }
-    }
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-
-    // 1. Fetch processes and editals first (this is the core data)
-    const { data: procData, error: procError } = await supabase
-      .from("processos")
-      .select("*, editais(objeto, orgao, numero, status, raw_json), documentos(*)")
-      .order("created_at", { ascending: false });
-
-    // 2. Fetch editals for the selection dropdown
-    const { data: editaisData } = await supabase
-      .from("editais")
-      .select("id, numero, objeto, orgao")
-      .order("created_at", { ascending: false });
-
-    if (procError) {
-      console.error("Erro ao buscar processos:", procError);
-      toast({
-        title: "Erro ao carregar processos",
-        description: procError.message,
-        variant: "destructive"
-      });
-    } else if (procData) {
-      setProcessos(procData as unknown as Processo[]);
-
-      // 3. Try to fetch participation counts separately
-      // This way, if the table 'participacao_itens' doesn't exist yet, 
-      // it won't break the main processes list.
       try {
-        const { data: countsData, error: countsError } = await supabase
-          .from("participacao_itens")
-          .select("processo_id");
-
-        if (!countsError && countsData) {
-          // Manually calculate counts
-          const countsMap: Record<string, number> = {};
-          countsData.forEach((item) => {
-            countsMap[item.processo_id] = (countsMap[item.processo_id] || 0) + 1;
-          });
-
-          setProcessos(prev => prev.map(p => ({
-            ...p,
-            participacao_itens: countsMap[p.id] ? [{ count: countsMap[p.id] }] : []
-          })));
-        }
-      } catch (e: unknown) {
-        console.warn("Tabela participacao_itens ainda não criada no banco.", e);
+        await updateProcessoStatus({ id: processId, status: newStatus });
+      } catch (error) {
+        toast({ title: "Erro ao mover", variant: "destructive" });
       }
     }
-
-    if (editaisData) setEditais(editaisData);
-    setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+  // Custom hooks handles fetching; no need for fetchData in useEffect
+
 
 
 
@@ -186,18 +131,15 @@ export default function Processos() {
       toast({ title: "Erro", description: "Preencha o número e selecione um edital.", variant: "destructive" });
       return;
     }
-    setSaving(true);
-    const { error } = await supabase.from("processos").insert({
-      numero_interno: novoNumero,
-      edital_id: novoEditalId,
-      status: novoStatus,
-      prazo: novoPrazo || null,
-      observacoes: novoObs || null,
-    });
+    try {
+      await createProcesso({
+        numero_interno: novoNumero,
+        edital_id: novoEditalId,
+        status: novoStatus,
+        prazo: novoPrazo || null,
+        observacoes: novoObs || null,
+      });
 
-    if (error) {
-      toast({ title: "Erro ao criar processo", description: error.message, variant: "destructive" });
-    } else {
       toast({ title: "✅ Processo criado!", description: `Processo ${novoNumero} foi criado com sucesso.` });
       setDialogOpen(false);
       setNovoNumero("");
@@ -205,9 +147,11 @@ export default function Processos() {
       setNovoStatus("triagem");
       setNovoPrazo("");
       setNovoObs("");
-      fetchData();
+    } catch (error: any) {
+      toast({ title: "Erro ao criar processo", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -433,7 +377,7 @@ export default function Processos() {
         processo={selectedProcesso}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
-        onRefresh={fetchData}
+        onRefresh={refetch}
       />
 
       <UasgProfile
