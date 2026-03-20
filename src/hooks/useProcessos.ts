@@ -98,7 +98,25 @@ export function useUpdateProcessoStatus() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    // Optimistic update
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["processos"] });
+      const previousProcessos = queryClient.getQueryData<Processo[]>(["processos"]);
+
+      if (previousProcessos) {
+        queryClient.setQueryData<Processo[]>(["processos"], (old) =>
+          old?.map((p) => (p.id === id ? { ...p, status } : p))
+        );
+      }
+
+      return { previousProcessos };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousProcessos) {
+        queryClient.setQueryData(["processos"], context.previousProcessos);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["processos"] });
     },
   });

@@ -7,16 +7,29 @@ import {
     buscarItensPncp,
     buscarItensPncpPorDescricao,
     buscarRdc,
-    type ComprasGovItemContratacao,
 } from "@/integrations/comprasGov/comprasGovApi";
-import type { BaseEdital } from "@/integrations/comprasGov/types";
+import type { 
+    BaseEdital, 
+    FiltrosContratacao, 
+    FiltrosLicitacaoLegado, 
+    FiltrosPregao,
+    ComprasGovItemContratacao,
+    ComprasGovRdc,
+    ComprasGovPregao,
+    ComprasGovContratacao
+} from "@/integrations/comprasGov/types";
+import { 
+    normalizeItemPncp, 
+    normalizeContratacaoPncp, 
+    normalizeRdc, 
+    normalizePregao 
+} from "@/integrations/comprasGov/normalizers";
 
 // ===========================
-// Hooks individuais (mantidos para compatibilidade)
+// Hooks individuais
 // ===========================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useContratacoes(filtros: any | null) {
+export function useContratacoes(filtros: FiltrosContratacao | null) {
     return useQuery({
         queryKey: ["contratacoes", filtros],
         queryFn: () => buscarContratacoes(filtros!),
@@ -26,8 +39,7 @@ export function useContratacoes(filtros: any | null) {
     });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function useLicitacoesLegado(filtros: any | null) {
+export function useLicitacoesLegado(filtros: FiltrosLicitacaoLegado | null) {
     return useQuery({
         queryKey: ["licitacoes-legado", filtros],
         queryFn: () => buscarLicitacoesLegado(filtros!),
@@ -37,8 +49,7 @@ export function useLicitacoesLegado(filtros: any | null) {
     });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function usePregoes(filtros: any | null) {
+export function usePregoes(filtros: FiltrosPregao | null) {
     return useQuery({
         queryKey: ["pregoes", filtros],
         queryFn: () => buscarPregoes(filtros!),
@@ -62,64 +73,6 @@ export interface FiltrosUnificados {
 }
 
 // ===========================
-// Normalização
-// ===========================
-
-/** Converte item de contratação PNCP (endpoint /2_consultarItens...) → BaseEdital */
-function normalizeItemPncp(item: ComprasGovItemContratacao): BaseEdital {
-    return {
-        id: item.idCompraItem || item.idCompra,
-        objeto: item.descricaoResumida || item.descricaodetalhada || item.objetoCompra || "Sem descrição",
-        orgao: item.unidadeOrgaoNomeUnidade || item.orgaoEntidadeRazaoSocial || `CNPJ ${item.orgaoEntidadeCnpj}`,
-        cnpj: item.orgaoEntidadeCnpj,
-        modalidade: item.materialOuServicoNome || "",
-        valor: item.valorTotal ?? null,
-        dataPublicacao: item.dataInclusaoPncp,
-        dataAbertura: item.dataAberturaPropostaPncp ?? undefined,
-        municipio: item.unidadeOrgaoMunicipioNome,
-        uf: item.unidadeOrgaoUfSigla,
-        portal: "pncp",
-        numeroControle: item.numeroControlePNCPCompra,
-        processo: item.processo,
-        raw: item as unknown as Record<string, unknown>,
-    };
-}
-
-/** Converte RDC Legado → BaseEdital */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeRdc(item: any): BaseEdital {
-    return {
-        id: item.identificador || String(item.numero_aviso),
-        objeto: item.objeto || "Sem descrição",
-        orgao: `UASG ${item.uasg}`,
-        modalidade: String(item.modalidade || ""),
-        valor: null,
-        dataPublicacao: item.data_publicacao,
-        dataAbertura: item.data_abertura_proposta ?? undefined,
-        uf: item.uf_uasg,
-        portal: "comprasgov",
-        link: `https://comprasnet.gov.br/livre/Licitacoes/consulta_filtro.asp?identificador=${item.identificador}`,
-        raw: item,
-    };
-}
-
-/** Converte Pregão Legado → BaseEdital */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizePregao(item: any): BaseEdital {
-    return {
-        id: item.id_compra || String(item.numero),
-        objeto: item.tx_objeto || "Sem descrição",
-        orgao: item.no_ausg || item.no_orgao || "",
-        modalidade: item.ds_tipo_pregao || "Pregão",
-        valor: item.vl_estimado_total ? parseFloat(item.vl_estimado_total) : null,
-        dataPublicacao: item.dt_data_edital,
-        dataAbertura: item.dt_inicio_proposta ?? undefined,
-        portal: "pregao",
-        raw: item,
-    };
-}
-
-// ===========================
 // Busca principal — server-side para PNCP, cliente para pregão
 // ===========================
 
@@ -135,10 +88,8 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
     const temPalavraChave = !!filtros.palavraChave?.trim();
     const kw = filtros.palavraChave?.trim();
 
-    // ─── PNCP: usa endpoint de ITENS — busca dentro da descrição de cada item ───
-    // O endpoint /2_consultarItens não tem filtro de texto, mas retorna "descricaoResumida"
-    // e "descricaodetalhada" por item. Buscamos e filtramos no cliente apenas por esse campo.
-    // Para sem palavra-chave, usamos o endpoint de contratações normal.
+    // ─── Chamadas Paralelas ───
+    
     const pncpPromise = temPalavraChave
         ? buscarItensPncpPorDescricao({
             pagina: filtros.pagina ?? 1,
@@ -157,17 +108,15 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
             unidadeOrgaoUfSigla: filtros.uf,
           });
 
-    // ─── RDC Legado: endpoint com parâmetro "objeto" — filtro server-side ───
     const legadoPromise = buscarRdc({
         pagina: filtros.pagina ?? 1,
         tamanhoPagina: 50,
         data_publicacao_min: filtros.dataInicial,
         data_publicacao_max: filtros.dataFinal,
-        objeto: kw,           // ← filtro server-side no objeto da licitação
+        objeto: kw,
         uf_uasg: filtros.uf,
     });
 
-    // ─── Pregões: sem filtro de texto na API — aplicamos client-side ───
     const pregaoPromise = buscarPregoes({
         pagina: filtros.pagina ?? 1,
         tamanhoPagina: 50,
@@ -190,10 +139,9 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
     if (pncpResult.status === "fulfilled") {
         const items = pncpResult.value.resultado || [];
         if (temPalavraChave) {
-            // Filtra itens por palavra-chave nas descrições
             const termo = kw!.toLowerCase();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const filtrados = items.filter((i: any) =>
+            const itemsContratacao = items as ComprasGovItemContratacao[];
+            const filtrados = itemsContratacao.filter(i =>
                 (i.descricaoResumida || "").toLowerCase().includes(termo) ||
                 (i.descricaodetalhada || "").toLowerCase().includes(termo) ||
                 (i.objetoCompra || "").toLowerCase().includes(termo) ||
@@ -202,23 +150,8 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
             );
             pncpEditais = filtrados.map(normalizeItemPncp);
         } else {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            pncpEditais = items.map((i: any) => ({
-                id: i.idCompra || i.numeroControlePNCP || "",
-                objeto: i.objetoCompra || "Sem descrição",
-                orgao: i.unidadeOrgaoNomeUnidade || i.orgaoEntidadeRazaoSocial || "",
-                cnpj: i.orgaoEntidadeCnpj || "",
-                modalidade: i.modalidadeNome || "",
-                valor: i.valorTotalEstimado ?? null,
-                dataPublicacao: i.dataPublicacaoPncp,
-                dataAbertura: i.dataAberturaPropostaPncp ?? undefined,
-                municipio: i.unidadeOrgaoMunicipioNome,
-                uf: i.unidadeOrgaoUfSigla,
-                portal: "pncp" as const,
-                numeroControle: i.numeroControlePNCP,
-                processo: i.processo,
-                raw: i,
-            }));
+            const contratacoes = items as ComprasGovContratacao[];
+            pncpEditais = contratacoes.map(normalizeContratacaoPncp);
         }
     } else {
         erros.pncp = (pncpResult.reason as Error)?.message || "Erro no PNCP";
@@ -226,25 +159,26 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
 
     // Processa RDC Legado
     if (legadoResult.status === "fulfilled") {
-        legadoEditais = (legadoResult.value.resultado || []).map(normalizeRdc);
+        const rdcResults = legadoResult.value.resultado as ComprasGovRdc[];
+        legadoEditais = (rdcResults || []).map(normalizeRdc);
     } else {
         erros.legado = (legadoResult.reason as Error)?.message || "Erro no Legado";
     }
 
-    // Processa Pregões — filtra vencidos E aplica palavra-chave client-side
+    // Processa Pregões
     if (pregaoResult.status === "fulfilled") {
         const agora = new Date();
         agora.setHours(0, 0, 0, 0);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let pregoes = (pregaoResult.value.resultado || []).filter((p: any) => {
+        
+        const results = pregaoResult.value.resultado as ComprasGovPregao[];
+        let pregoes = (results || []).filter(p => {
             if (!p.dt_fim_proposta) return true;
             return new Date(p.dt_fim_proposta) >= agora;
         });
-        // filtra por palavra-chave no objeto
+
         if (temPalavraChave) {
             const termo = kw!.toLowerCase();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            pregoes = pregoes.filter((p: any) =>
+            pregoes = pregoes.filter(p =>
                 (p.tx_objeto || "").toLowerCase().includes(termo) ||
                 (p.no_ausg || "").toLowerCase().includes(termo) ||
                 (p.no_orgao || "").toLowerCase().includes(termo)

@@ -147,6 +147,53 @@ export interface ComprasGovItem {
     situacaoItemNome: string;
 }
 
+/** Itens de Contratações PNCP (endpoint /2_consultarItensContratacoes_PNCP_14133) */
+export interface ComprasGovItemContratacao {
+    idCompra: string;
+    idCompraItem: string;
+    idContratacaoPNCP: string;
+    unidadeOrgaoCodigoUnidade: string;
+    orgaoEntidadeCnpj: string;
+    numeroItemPncp: number;
+    descricaoResumida: string;
+    materialOuServicoNome: string;
+    unidadeMedida: string;
+    quantidade: number;
+    valorUnitarioEstimado: number;
+    valorTotal: number;
+    situacaoCompraItemNome: string;
+    dataInclusaoPncp: string;
+    dataAtualizacaoPncp: string;
+    numeroControlePNCPCompra: string;
+    // dados da compra (join) — vem populados
+    objetoCompra?: string;
+    orgaoEntidadeRazaoSocial?: string;
+    modalidadeNome?: string;
+    dataAberturaPropostaPncp?: string;
+    unidadeOrgaoNomeUnidade?: string;
+    unidadeOrgaoUfSigla?: string;
+    unidadeOrgaoMunicipioNome?: string;
+    processo?: string;
+    anoCompraPncp?: number;
+    sequencialCompraPncp?: number;
+    // campos descricão detalhada
+    descricaodetalhada?: string;
+}
+
+/** RDC Legado (Lei 12.462/2011 - endpoint /modulo-legado/7_consultarRdc) */
+export interface ComprasGovRdc {
+    identificador: string;
+    numero_aviso: number;
+    uasg: number;
+    objeto: string;
+    modalidade: number;
+    situacao_aviso: string;
+    data_publicacao: string;
+    data_abertura_proposta: string | null;
+    data_entrega_proposta: string | null;
+    uf_uasg: string;
+}
+
 // ===========================
 // Filtros de busca
 // ===========================
@@ -182,6 +229,28 @@ export interface FiltrosPregao {
     co_orgao?: number;
     numero?: number;
     ds_tipo_pregao_compra?: string;
+}
+
+export interface FiltrosItensPncp {
+    pagina?: number;
+    tamanhoPagina?: number;
+    dataInclusaoPncpInicial: string; // YYYY-MM-DD
+    dataInclusaoPncpFinal: string;   // YYYY-MM-DD
+    orgaoEntidadeCnpj?: string;
+    unidadeOrgaoCodigoUnidade?: string;
+    materialOuServico?: string; // "M" ou "S"
+}
+
+export interface FiltrosRdc {
+    pagina?: number;
+    tamanhoPagina?: number;
+    data_publicacao_min: string; // YYYY-MM-DD
+    data_publicacao_max: string; // YYYY-MM-DD
+    objeto?: string;             // ← busca textual no objeto da licitação
+    uasg?: number;
+    uf_uasg?: string;
+    modalidade?: number;
+    situacao_aviso?: string;
 }
 
 // ===========================

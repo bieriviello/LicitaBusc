@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { FileText, Search, AlertTriangle, Loader2, Download, Activity, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { BaseEdital } from "@/integrations/comprasGov/types";
 import type { Json } from "@/integrations/supabase/types";
 import { useNavigate } from "react-router-dom";
+import { useMonitoramentos } from "@/hooks/useMonitoramentos";
 
 // Badge de label por portal
 const PORTAL_BADGE: Record<string, { label: string; className: string }> = {
@@ -21,56 +22,35 @@ const PORTAL_BADGE: Record<string, { label: string; className: string }> = {
 };
 
 export default function Editais() {
-    const { canCreate } = useAuth();
+    const { canCreate, user } = useAuth();
     const { toast } = useToast();
     const navigate = useNavigate();
 
-    interface Monitoramento {
-        id: string;
-        nome: string;
-        palavra_chave: string;
-    }
-
     const [filtros, setFiltros] = useState<FiltrosUnificados | null>(null);
     const [pagina, setPagina] = useState(1);
-    const [monitoramentos, setMonitoramentos] = useState<Monitoramento[]>([]);
+    
+    const { 
+        monitoramentos, 
+        saveMonitoramento, 
+        deleteMonitoramento 
+    } = useMonitoramentos();
 
     const { data, isLoading, isError, error } = useEditaisUnificados(
         filtros ? { ...filtros, pagina } : null
     );
 
-    useEffect(() => {
-        fetchMonitoramentos();
-    }, []);
-
-    const fetchMonitoramentos = async () => {
-        const { data } = await supabase
-            .from("monitoramentos")
-            .select("*")
-            .order("created_at", { ascending: false });
-        if (data) setMonitoramentos(data);
-    };
-
     const handleSaveMonitoramento = async (nome: string, termo: string) => {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) return;
-        const { error } = await supabase.from("monitoramentos").insert({
-            user_id: userData.user.id,
+        if (!user) return;
+        await saveMonitoramento({
+            user_id: user.id,
             nome,
             palavra_chave: termo,
             filtros: { modulo: "unificado" },
         });
-        if (error) {
-            toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Monitoramento salvo!", description: "Você será avisado sobre novos editais." });
-            fetchMonitoramentos();
-        }
     };
 
     const handleDeleteMonitoramento = async (id: string) => {
-        const { error } = await supabase.from("monitoramentos").delete().eq("id", id);
-        if (!error) fetchMonitoramentos();
+        await deleteMonitoramento(id);
     };
 
     const handleBuscar = (f: FiltrosUnificados) => {

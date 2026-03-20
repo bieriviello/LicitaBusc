@@ -7,6 +7,7 @@ export interface Processo {
   observacoes: string | null;
   created_at: string;
   editais?: {
+    id: string;
     objeto: string;
     orgao: string;
     numero: string;
