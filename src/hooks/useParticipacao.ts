@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface ParticipacaoItem {
+  id?: string;
   processo_id: string;
   numero_item: number;
   descricao: string;
@@ -11,6 +12,8 @@ export interface ParticipacaoItem {
   valor_proposta: number;
   quantidade: number;
   unidade: string;
+  lote?: string | null;
+  produto_id?: string | null;
 }
 
 export function useParticipacao(processoId: string | undefined) {

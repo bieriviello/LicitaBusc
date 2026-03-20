@@ -129,14 +129,14 @@ export default function Editais() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Editais</h1>
-                    <p className="text-muted-foreground mt-1">
-                        Busca unificada em todos os portais — PNCP, Compras.gov Legado e Pregões
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-4xl font-extrabold tracking-tight gradient-text">Editais</h1>
+                    <p className="text-sm font-medium text-muted-foreground/80 uppercase tracking-widest leading-none mt-1">
+                        Busca unificada em Multiportais
                     </p>
                 </div>
                 {data && data.editais.length > 0 && (
-                    <Button variant="outline" className="gap-2" onClick={handleExportCsv}>
+                    <Button variant="outline" className="gap-2 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95" onClick={handleExportCsv}>
                         <Download className="h-4 w-4" />
                         Baixar CSV
                     </Button>
@@ -144,7 +144,7 @@ export default function Editais() {
             </div>
 
             {/* Filtros + Monitoramentos */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 <div className="lg:col-span-3">
                     <ComprasGovFilters
                         onBuscar={handleBuscar}
@@ -154,13 +154,13 @@ export default function Editais() {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Activity className="h-4 w-4 text-primary" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                    <div className="flex items-center gap-2 px-1">
+                        <Activity className="h-4 w-4 text-primary animate-pulse" />
+                        <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">
                             Monitoramentos
                         </h2>
                     </div>
-                    <div className="bg-card border rounded-xl p-4 min-h-[100px] space-y-3">
+                    <div className="glass-card p-5 space-y-4 min-h-[140px]">
                         {monitoramentos.length === 0 ? (
                             <p className="text-xs text-muted-foreground italic">
                                 Nenhum monitoramento salvo.

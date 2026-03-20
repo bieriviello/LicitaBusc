@@ -146,28 +146,30 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-4xl font-extrabold tracking-tight gradient-text">
           Olá, {profile?.nome?.split(" ")[0] || "Usuário"} 👋
         </h1>
-        <p className="text-muted-foreground mt-1">Acompanhe o resumo das suas licitações</p>
+        <p className="text-muted-foreground text-sm font-medium opacity-80 uppercase tracking-widest">
+          Resumo do seu Hub de Licitações
+        </p>
       </div>
 
       {/* Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {metricsCards.map((card) => (
-          <Card key={card.title} className="border-border/50 hover:shadow-md transition-shadow">
+          <Card key={card.title} className="glass-card border-none hover:translate-y-[-4px] transition-all duration-300">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
-              <div className={`p-2 rounded-lg ${card.bg}`}>
-                <card.icon className={`h-4 w-4 ${card.color}`} />
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground/70">{card.title}</CardTitle>
+              <div className={`p-2.5 rounded-xl ${card.bg} shadow-inner`}>
+                <card.icon className={`h-4.5 w-4.5 ${card.color}`} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">
+              <div className="text-4xl font-black tracking-tighter text-foreground mb-1">
                 {loading ? "—" : card.value}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{card.description}</p>
+              <p className="text-[11px] font-medium text-muted-foreground/60 leading-tight">{card.description}</p>
             </CardContent>
           </Card>
         ))}

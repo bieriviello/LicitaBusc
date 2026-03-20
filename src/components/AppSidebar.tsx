@@ -123,37 +123,37 @@ export function AppSidebar() {
     .toUpperCase() || "?";
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="p-4">
+    <Sidebar collapsible="icon" className="border-r border-border/50 bg-sidebar/50 backdrop-blur-xl">
+      <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-700 text-white shadow-lg shadow-primary/20 font-bold text-base ring-4 ring-primary/10">
             LB
           </div>
           {!collapsed && (
             <div>
-              <h2 className="font-semibold text-sm text-foreground leading-none">LicitaBusc</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Gestão de Licitações</p>
+              <h2 className="font-bold text-sm text-foreground leading-none tracking-tight">LicitaBusc</h2>
+              <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-widest font-medium opacity-80">Gestão de Licitações</p>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-4 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 mb-2">Plataforma</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {mainNav.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink
                       to={item.url}
                       end={item.url === "/"}
-                      className="hover:bg-accent/50 transition-colors"
-                      activeClassName="bg-accent text-accent-foreground font-medium"
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 hover:bg-primary/5 group"
+                      activeClassName="bg-primary/10 text-primary font-bold shadow-sm"
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <item.icon className="h-[18px] w-[18px] transition-transform group-hover:scale-110" />
+                      <span className="text-sm tracking-tight">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

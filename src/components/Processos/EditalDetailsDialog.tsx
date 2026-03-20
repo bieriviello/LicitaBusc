@@ -44,13 +44,18 @@ export function EditalDetailsDialog({
   } = useParticipacao(processo?.id);
 
   // Local state for items being edited
-  const [localParticipacoes, setLocalParticipacoes] = useState<Record<number, { selecionado: boolean, valor: string }>>({});
+  const [localParticipacoes, setLocalParticipacoes] = useState<Record<number, { selecionado: boolean, valor: string, lote: string, produto_id: string }>>({});
 
   useEffect(() => {
     if (open && participacoesData) {
-      const initial: Record<number, { selecionado: boolean, valor: string }> = {};
+      const initial: Record<number, { selecionado: boolean, valor: string, lote: string, produto_id: string }> = {};
       participacoesData.forEach((p: ParticipacaoItem) => {
-        initial[p.numero_item] = { selecionado: true, valor: p.valor_proposta?.toString() || "" };
+        initial[p.numero_item] = { 
+          selecionado: true, 
+          valor: p.valor_proposta?.toString() || "",
+          lote: p.lote || "",
+          produto_id: p.produto_id || ""
+        };
       });
       setLocalParticipacoes(initial);
     } else {
@@ -65,16 +70,18 @@ export function EditalDetailsDialog({
         ...prev,
         [item.numeroItem]: {
           selecionado: !isSelected,
-          valor: !isSelected ? (item.valorUnitarioEstimado?.toString() || "") : ""
+          valor: !isSelected ? (item.valorUnitarioEstimado?.toString() || "") : "",
+          lote: prev[item.numeroItem]?.lote || "",
+          produto_id: prev[item.numeroItem]?.produto_id || ""
         }
       };
     });
   };
 
-  const updateValue = (numeroItem: number, value: string) => {
+  const updateItemField = (numeroItem: number, field: "valor" | "lote" | "produto_id", value: string) => {
     setLocalParticipacoes(prev => ({
       ...prev,
-      [numeroItem]: { ...prev[numeroItem], valor: value }
+      [numeroItem]: { ...prev[numeroItem], [field]: value }
     }));
   };
 
@@ -93,6 +100,8 @@ export function EditalDetailsDialog({
           valor_proposta: parseFloat(data.valor) || 0,
           quantidade: itemPncp?.quantidade || 0,
           unidade: itemPncp?.unidadeMedida || "",
+          lote: data.lote || null,
+          produto_id: data.produto_id || null
         };
       });
 
@@ -208,7 +217,7 @@ export function EditalDetailsDialog({
                 loading={loadingItens || isLoadingParticipacoes} 
                 participacoes={localParticipacoes}
                 onToggleItem={toggleItem}
-                onUpdateValue={updateValue}
+                onUpdateField={updateItemField}
             />
 
             {/* Footer Ações */}
