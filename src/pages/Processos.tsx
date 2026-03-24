@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +12,8 @@ import {
   Building2,
   FileText,
   Loader2,
-  Check,
-  Save,
   Search,
-  X,
-  Sparkles
+  X
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -37,10 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useItensPncp } from "@/hooks/useComprasGov";
 import { UasgProfile } from "@/components/UasgProfile";
-import { FileUpload } from "@/components/FileUpload";
-import { pdfService } from "@/services/pdfService";
 import { AIAnalysisDialog } from "@/components/AIAnalysisDialog";
 import {
   DndContext,
@@ -50,12 +44,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  useDroppable,
-  useDraggable,
   DragEndEvent,
   DragStartEvent
 } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import type { Processo, Edital } from '@/types/processos';
 import { STATUS_OPTIONS } from '@/types/processos';
 import { EditalDetailsDialog } from '@/components/Processos/EditalDetailsDialog';
@@ -147,8 +138,8 @@ export default function Processos() {
       setNovoStatus("triagem");
       setNovoPrazo("");
       setNovoObs("");
-    } catch (error: any) {
-      toast({ title: "Erro ao criar processo", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Erro ao criar processo", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
     } finally {
       setSaving(false);
     }

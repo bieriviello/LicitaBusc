@@ -102,8 +102,8 @@ export function AIAnalysisDialog({ open, onOpenChange, objeto, raw, pdfText }: A
                         </div>
                         Análise de Edital com IA
                     </DialogTitle>
-                    <DialogDescription className="text-xs font-semibold py-1 px-2 bg-primary/10 text-primary rounded-full w-fit">
-                        Beta Intelligence Engine
+                    <DialogDescription className="text-xs font-semibold py-1 px-2 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded-full w-fit">
+                        ⚠️ DEMO — Dados simulados (sem IA real integrada)
                     </DialogDescription>
                 </DialogHeader>
 

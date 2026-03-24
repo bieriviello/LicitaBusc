@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { EDITAL_STATUS_BADGE } from "@/constants/statuses";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { monitoramentoService } from "@/services/monitoramentoService";
 import { FileText, FolderOpen, FileCheck, Clock, AlertTriangle, TrendingUp, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,110 +16,22 @@ import {
   Pie,
   Legend,
 } from "recharts";
-import { parseISO, differenceInDays, format } from "date-fns";
+import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-interface Metrics {
-  editaisAtivos: number;
-  processosTotal: number;
-  propostasEnviadas: number;
-  propostasRascunho: number;
-}
-
-interface RecentEdital {
-  id: string;
-  objeto: string;
-  orgao: string;
-  numero: string;
-  status: string;
-}
-
-interface ProcessoStatusCount {
-  name: string;
-  value: number;
-  color: string;
-}
-
-interface PrazoUrgente {
-  id: string;
-  numero_interno: string;
-  status: string;
-  prazo: string;
-  editais: {
-    objeto: string;
-    orgao: string;
-  };
-  diasRestantes: number;
-}
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  triagem:               { label: "Triagem",          color: "#94a3b8" },
-  analise_tecnica:       { label: "Análise Téc.",     color: "#60a5fa" },
-  montagem_documentacao: { label: "Montagem Doc.",    color: "#818cf8" },
-  proposta_enviada:      { label: "Proposta Env.",    color: "#a78bfa" },
-  disputa_lances:        { label: "Disputa",          color: "#fbbf24" },
-  homologado:            { label: "Homologado",       color: "#34d399" },
-  cancelado:             { label: "Cancelado",        color: "#f87171" },
-};
 
 export default function Dashboard() {
   const { profile } = useAuth();
-  const [metrics, setMetrics] = useState<Metrics>({
-    editaisAtivos: 0, processosTotal: 0, propostasEnviadas: 0, propostasRascunho: 0
-  });
-  const [recentEditais, setRecentEditais] = useState<RecentEdital[]>([]);
-  const [processosPorStatus, setProcessosPorStatus] = useState<ProcessoStatusCount[]>([]);
-  const [prazosUrgentes, setPrazosUrgentes] = useState<PrazoUrgente[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading } = useDashboardMetrics();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const [editaisRes, processosRes, propostasRes, recentRes, allProcessosRes] = await Promise.all([
-        supabase.from("editais").select("id", { count: "exact", head: true }).eq("status", "ativo"),
-        supabase.from("processos").select("id", { count: "exact", head: true }),
-        supabase.from("propostas").select("id, status"),
-        supabase.from("editais").select("*").order("created_at", { ascending: false }).limit(5),
-        supabase.from("processos").select("id, status, prazo, numero_interno, editais(objeto, orgao)").order("prazo", { ascending: true }),
-      ]);
-
-      const propostas = propostasRes.data || [];
-      setMetrics({
-        editaisAtivos: editaisRes.count || 0,
-        processosTotal: processosRes.count || 0,
-        propostasEnviadas: propostas.filter((p) => p.status === "enviada").length,
-        propostasRascunho: propostas.filter((p) => p.status === "rascunho").length,
-      });
-      setRecentEditais((recentRes.data as RecentEdital[]) || []);
-
-      // Contagem por status
-      const allProcessos = allProcessosRes.data || [];
-      const counts: Record<string, number> = {};
-      allProcessos.forEach((p) => {
-        const s = String(p.status);
-        counts[s] = (counts[s] || 0) + 1;
-      });
-      const chartData = Object.entries(STATUS_LABELS).map(([key, val]) => ({
-        name: val.label,
-        value: counts[key] || 0,
-        color: val.color,
-      })).filter(d => d.value > 0);
-      setProcessosPorStatus(chartData);
-
-      // Prazos urgentes (próximos 7 dias)
-      const hoje = new Date();
-      const urgentes = allProcessos
-        .filter((p) => p.prazo && !["homologado", "cancelado"].includes(String(p.status)))
-        .map((p) => ({ ...p, diasRestantes: differenceInDays(parseISO(String(p.prazo)), hoje) }))
-        .filter((p) => p.diasRestantes >= 0 && p.diasRestantes <= 7)
-        .sort((a, b) => a.diasRestantes - b.diasRestantes)
-        .slice(0, 5) as PrazoUrgente[];
-      setPrazosUrgentes(urgentes);
-
-      setLoading(false);
-      monitoramentoService.checkAllKeywords();
-    };
-    fetchData();
-  }, []);
+  const metrics = data?.metrics ?? {
+    editaisAtivos: 0,
+    processosTotal: 0,
+    propostasEnviadas: 0,
+    propostasRascunho: 0,
+  };
+  const recentEditais = data?.recentEditais ?? [];
+  const processosPorStatus = data?.processosPorStatus ?? [];
+  const prazosUrgentes = data?.prazosUrgentes ?? [];
 
   const metricsCards = [
     { title: "Editais Ativos",       value: metrics.editaisAtivos,      icon: FileText,  color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-950/30",     description: "Licitações em andamento" },
@@ -129,14 +40,8 @@ export default function Dashboard() {
     { title: "Propostas Rascunho",   value: metrics.propostasRascunho,  icon: Clock,     color: "text-amber-600",  bg: "bg-amber-50 dark:bg-amber-950/30",    description: "Aguardando envio" },
   ];
 
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      ativo:     "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-      encerrado: "bg-muted text-muted-foreground",
-      suspenso:  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    };
-    return map[status] || "bg-muted text-muted-foreground";
-  };
+  const statusBadge = (status: string) =>
+    EDITAL_STATUS_BADGE[status] || "bg-muted text-muted-foreground";
 
   const propostasChartData = [
     { name: "Enviadas",  value: metrics.propostasEnviadas,  fill: "#a78bfa" },

@@ -12,7 +12,8 @@ import {
     Info,
     Sparkles,
     Clock,
-    Scale
+    Scale,
+    FileText
 } from "lucide-react";
 import { ArquivosDialog } from "./ArquivosDialog";
 import { AIAnalysisDialog } from "./AIAnalysisDialog";
@@ -119,7 +120,7 @@ export function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
                             <div className="space-y-4 pt-4">
                                 <section>
                                     <h4 className="font-semibold text-sm mb-1.5 text-primary flex items-center gap-2">
-                                        <FileTextIcon className="h-4 w-4" /> Objeto
+                                        <FileText className="h-4 w-4" /> Objeto
                                     </h4>
                                     <p className="text-sm text-foreground/80 leading-relaxed text-justify">{edital.objeto || "Não informado"}</p>
                                 </section>
@@ -221,25 +222,4 @@ function DetailBox({ icon, label, value, subValue, valueClassName = "" }: Detail
     );
 }
 
-function FileTextIcon(props: any) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-        <path d="M10 9H8" />
-        <path d="M16 13H8" />
-        <path d="M16 17H8" />
-      </svg>
-    )
-}
+

@@ -3,6 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FileCheck, Plus, Trash2, Edit2, FileText, Loader2, Save } from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
+import { PROPOSTA_STATUS_OPTIONS } from "@/constants/statuses";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,12 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { usePropostas, useCreateProposta, useDeleteProposta, useProcessosDropdown } from "@/hooks/usePropostas";
 
-const STATUS_OPCOES = [
-  { value: "Rascunho", bg: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
-  { value: "Enviada", bg: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
-  { value: "Venceu", bg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  { value: "Perdeu", bg: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
-];
+
 
 export default function Propostas() {
   const { canCreate } = useAuth();
@@ -55,12 +52,7 @@ export default function Propostas() {
   const [novaMargem, setNovaMargem] = useState("");
   const [novosImpostos, setNovosImpostos] = useState("");
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
+
 
   const handleCreate = async () => {
     if (!novoProcessoId || !novoValor) {
@@ -120,7 +112,7 @@ export default function Propostas() {
           <p className="text-muted-foreground mt-1">Gerencie suas propostas comerciais enviadas e em rascunho</p>
         </div>
 
-        {canCreate && (
+        {canCreate() && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -169,7 +161,7 @@ export default function Propostas() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {STATUS_OPCOES.map((so) => (
+                        {PROPOSTA_STATUS_OPTIONS.map((so) => (
                           <SelectItem key={so.value} value={so.value}>
                             {so.value}
                           </SelectItem>
@@ -233,7 +225,7 @@ export default function Propostas() {
             </TableHeader>
             <TableBody>
               {propostas.map((prop) => {
-                const badgeColor = STATUS_OPCOES.find((s) => s.value === prop.status)?.bg || "bg-slate-100";
+                const badgeColor = PROPOSTA_STATUS_OPTIONS.find((s) => s.value === prop.status)?.color || "bg-slate-100";
                 
                 return (
                   <TableRow key={prop.id}>

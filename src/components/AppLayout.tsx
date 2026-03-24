@@ -1,10 +1,11 @@
 import { ReactNode } from "react";
+import { Outlet } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/hooks/useAuth";
 
-export function AppLayout({ children }: { children: ReactNode }) {
-  const { profile, role } = useAuth();
+export function AppLayout({ children }: { children?: ReactNode }) {
+  const { profile } = useAuth();
 
   return (
     <SidebarProvider>
@@ -24,7 +25,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-8 lg:p-10 z-0">
-            {children}
+            {children ?? <Outlet />}
           </main>
         </div>
       </div>
