@@ -1,0 +1,42 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  build_and_test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Type Check
+        run: npx tsc --noEmit
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Unit Tests
+        run: npm run test
+        
+      # Opcionalmente testar o build (assegura que não quebra em prod)
+      - name: Build Application
+        run: npm run build
+        env:
+          # Variáveis necessárias para buildar com sucesso se houver verificações
+          VITE_SUPABASE_URL: "https://mock-ur-lfor-ci.supabase.co"
+          VITE_SUPABASE_ANON_KEY: "mock-anon-key-for-ci"

@@ -47,7 +47,7 @@ export function ComprasGovFilters({ onBuscar, onSaveMonitoramento, loading }: Co
         dataInicial,
         dataFinal,
         palavraChave: kw ?? (palavraChave || undefined),
-        uf: uf || undefined,
+        uf: uf && uf !== "all" ? uf : undefined,
         cnpjOrgao: cnpjOrgao || undefined,
     });
 

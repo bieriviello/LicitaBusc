@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,7 @@ import { DroppableColumn } from '@/components/Processos/DroppableColumn';
 import { useProcessos, useEditaisDropdown, useCreateProcesso, useUpdateProcessoStatus } from "@/hooks/useProcessos";
 
 
+import { CreateProcessoDialog } from "@/components/Processos/CreateProcessoDialog";
 import { useSearchParams } from "react-router-dom";
 export default function Processos() {
   const { canCreate } = useAuth();
@@ -71,13 +72,7 @@ export default function Processos() {
   const [selectedProcesso, setSelectedProcesso] = useState<Processo | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  // Form state
-  const [novoNumero, setNovoNumero] = useState("");
-  const [novoEditalId, setNovoEditalId] = useState("");
-  const [novoStatus, setNovoStatus] = useState("em_andamento");
-  const [novoPrazo, setNovoPrazo] = useState("");
-  const [novoObs, setNovoObs] = useState("");
-
+  // Components handles creation logic
   const [uasgProfileOpen, setUasgProfileOpen] = useState(false);
   const [selectedOrgao, setSelectedOrgao] = useState("");
   const [saving, setSaving] = useState(false);
@@ -111,40 +106,6 @@ export default function Processos() {
     }
   };
 
-
-  // Custom hooks handles fetching; no need for fetchData in useEffect
-
-
-
-
-  const handleCriar = async () => {
-    if (!novoNumero || !novoEditalId) {
-      toast({ title: "Erro", description: "Preencha o número e selecione um edital.", variant: "destructive" });
-      return;
-    }
-    try {
-      await createProcesso({
-        numero_interno: novoNumero,
-        edital_id: novoEditalId,
-        status: novoStatus,
-        prazo: novoPrazo || null,
-        observacoes: novoObs || null,
-      });
-
-      toast({ title: "✅ Processo criado!", description: `Processo ${novoNumero} foi criado com sucesso.` });
-      setDialogOpen(false);
-      setNovoNumero("");
-      setNovoEditalId("");
-      setNovoStatus("triagem");
-      setNovoPrazo("");
-      setNovoObs("");
-    } catch (error: unknown) {
-      toast({ title: "Erro ao criar processo", description: error instanceof Error ? error.message : "Erro desconhecido", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find((o) => o.value === status);
     return opt ? { label: opt.label, color: opt.color } : { label: status, color: "bg-muted text-muted-foreground" };
@@ -162,6 +123,18 @@ export default function Processos() {
     });
   }, [processos, searchTerm]);
 
+  const handleCardClick = useCallback((proc: Processo) => {
+    setSelectedProcesso(proc);
+    setDetailsOpen(true);
+  }, []);
+
+  const handleOrgaoClick = useCallback((orgao: string) => {
+    setSelectedOrgao(orgao);
+    setUasgProfileOpen(true);
+  }, []);
+
+  const noop = useCallback(() => {}, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -171,94 +144,18 @@ export default function Processos() {
           <p className="text-muted-foreground mt-1">Acompanhe os processos internos vinculados a editais</p>
         </div>
         {canCreate() && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Novo Processo
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Processo</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="numero">Número Interno *</Label>
-                  <Input
-                    id="numero"
-                    value={novoNumero}
-                    onChange={(e) => setNovoNumero(e.target.value)}
-                    placeholder="Ex: PROC-2025-001"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Edital Vinculado *</Label>
-                  <Select value={novoEditalId} onValueChange={setNovoEditalId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um edital" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {editais.length === 0 ? (
-                        <SelectItem value="none" disabled>
-                          Nenhum edital importado
-                        </SelectItem>
-                      ) : (
-                        editais.map((e) => (
-                          <SelectItem key={e.id} value={e.id}>
-                            {e.numero} — {e.objeto?.slice(0, 50)}...
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={novoStatus} onValueChange={setNovoStatus}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="prazo">Prazo</Label>
-                    <Input
-                      id="prazo"
-                      type="date"
-                      value={novoPrazo}
-                      onChange={(e) => setNovoPrazo(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="obs">Observações</Label>
-                  <Textarea
-                    id="obs"
-                    value={novoObs}
-                    onChange={(e) => setNovoObs(e.target.value)}
-                    placeholder="Observações sobre o processo..."
-                    rows={3}
-                  />
-                </div>
-
-                <Button onClick={handleCriar} className="w-full" disabled={saving}>
-                  {saving ? "Salvando..." : "Criar Processo"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <CreateProcessoDialog 
+            editais={editais} 
+            onCreate={async (data) => {
+              setSaving(true);
+              try {
+                await createProcesso(data);
+              } finally {
+                setSaving(false);
+              }
+            }} 
+            loading={saving} 
+          />
         )}
       </div>
 
@@ -266,12 +163,12 @@ export default function Processos() {
       {!loading && processos.length > 0 && (
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
+          <Input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por processo, edital ou órgão..."
-            className="w-full h-9 pl-9 pr-8 text-sm rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all"
+            className="pl-9 pr-8 bg-background"
           />
           {searchTerm && (
             <button
@@ -328,24 +225,14 @@ export default function Processos() {
             {STATUS_OPTIONS.map((col) => {
               const processosNaColuna = processosFiltrados.filter(p => p.status === col.value);
               return (
-                <DroppableColumn key={col.value} col={col} count={processosNaColuna.length}>
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                    {processosNaColuna.map((proc) => (
-                      <DraggableProcessoCard
-                        key={proc.id}
-                        proc={proc}
-                        onClick={() => {
-                          setSelectedProcesso(proc);
-                          setDetailsOpen(true);
-                        }}
-                        onOrgaoClick={(orgao) => {
-                          setSelectedOrgao(orgao);
-                          setUasgProfileOpen(true);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </DroppableColumn>
+                <DroppableColumn 
+                  key={col.value} 
+                  col={col} 
+                  count={processosNaColuna.length}
+                  processos={processosNaColuna}
+                  onCardClick={handleCardClick}
+                  onOrgaoClick={handleOrgaoClick}
+                />
               );
             })}
           </div>
@@ -354,8 +241,8 @@ export default function Processos() {
             {activeId ? (
               <DraggableProcessoCard
                 proc={processos.find(p => p.id === activeId)!}
-                onClick={() => { }}
-                onOrgaoClick={() => { }}
+                onClick={noop}
+                onOrgaoClick={noop}
                 isOverlay={true}
               />
             ) : null}

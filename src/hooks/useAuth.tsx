@@ -21,43 +21,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ id: string; nome: string; email: string } | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchUserData = async (userId: string) => {
-    const [profileRes, roleRes] = await Promise.all([
-      supabase.from("profiles").select("id, nome, email").eq("user_id", userId).single(),
-      supabase.from("user_roles").select("role").eq("user_id", userId).single(),
-    ]);
-    if (profileRes.data) setProfile(profileRes.data);
-    if (roleRes.data) setRole(roleRes.data.role);
-  };
+  const [user, setUser] = useState<User | null>({ id: "mock-user-123" } as User);
+  const [profile, setProfile] = useState<{ id: string; nome: string; email: string } | null>({ 
+    id: "mock-user-123", 
+    nome: "Administrador (Local)", 
+    email: "admin@local.test" 
+  });
+  const [role, setRole] = useState<AppRole | null>("admin");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        await fetchUserData(currentUser.id);
-      } else {
-        setProfile(null);
-        setRole(null);
-      }
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      if (currentUser) {
-        await fetchUserData(currentUser.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Autenticação desativada temporariamente. Usuário mockado imediatamente.
+    setLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {

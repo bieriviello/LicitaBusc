@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,20 +46,7 @@ export function AIAnalysisDialog({ open, onOpenChange, objeto, raw, pdfText }: A
     const [loading, setLoading] = useState(true);
     const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
 
-    useEffect(() => {
-        if (open) {
-            setLoading(true);
-            // Simula processamento da IA
-            const timer = setTimeout(() => {
-                generateMockAnalysis();
-                setLoading(false);
-            }, 2500);
-            return () => clearTimeout(timer);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, objeto]);
-
-    const generateMockAnalysis = () => {
+    const generateMockAnalysis = useCallback(() => {
         const sourceText = pdfText || objeto;
         const isServico = sourceText.toLowerCase().includes("serviço") || sourceText.toLowerCase().includes("manutenção");
         const isObra = sourceText.toLowerCase().includes("obra") || sourceText.toLowerCase().includes("reforma");
@@ -90,7 +77,19 @@ export function AIAnalysisDialog({ open, onOpenChange, objeto, raw, pdfText }: A
                 impugnacao: "Até 3 dias úteis antes da abertura",
             }
         });
-    };
+    }, [objeto, pdfText, raw.unidadeOrgaoNomeUnidade]);
+
+    useEffect(() => {
+        if (open) {
+            setLoading(true);
+            // Simula processamento da IA
+            const timer = setTimeout(() => {
+                generateMockAnalysis();
+                setLoading(false);
+            }, 2500);
+            return () => clearTimeout(timer);
+        }
+    }, [open, generateMockAnalysis]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

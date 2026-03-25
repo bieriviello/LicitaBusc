@@ -34,7 +34,7 @@ interface ContratacaoCardProps {
     onImportar?: (edital: BaseEdital) => void;
 }
 
-export function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
+export const ContratacaoCard = React.memo(function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
     const [aiOpen, setAiOpen] = useState(false);
     
     const getPortalUrl = () => {
@@ -200,7 +200,7 @@ export function ContratacaoCard({ edital, onImportar }: ContratacaoCardProps) {
             </CardContent>
         </Card>
     );
-}
+});
 
 interface DetailBoxProps {
     icon: ReactNode;

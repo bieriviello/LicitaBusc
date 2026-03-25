@@ -5,7 +5,7 @@ import type { Processo } from "@/types/processos";
 
 interface ChecklistSectionProps {
     processo: Processo;
-    onUpdate: (checklist: any[]) => void;
+    onUpdate: (checklist: NonNullable<Processo['checklist']>) => void;
 }
 
 const CHECKLIST_ITEMS = [

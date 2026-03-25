@@ -1,3 +1,4 @@
+import React from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,17 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, Calendar, Check } from "lucide-react";
 import type { Processo } from "@/types/processos";
 
-export function DraggableProcessoCard({ 
+interface DraggableProcessoCardProps {
+  proc: Processo;
+  onClick: (proc: Processo) => void;
+  onOrgaoClick: (orgao: string) => void;
+  isOverlay?: boolean;
+}
+
+export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({ 
   proc, 
   onClick, 
   onOrgaoClick, 
   isOverlay = false 
-}: { 
-  proc: Processo; 
-  onClick: () => void; 
-  onOrgaoClick: (orgao: string) => void; 
-  isOverlay?: boolean 
-}) {
+}: DraggableProcessoCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: proc.id,
     data: proc,
@@ -35,7 +38,7 @@ export function DraggableProcessoCard({
       <Card
         className={`border-border/50 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing group bg-card ${isOverlay ? 'ring-2 ring-primary shadow-2xl rotate-2' : ''
           }`}
-        onClick={onClick}
+        onClick={() => onClick(proc)}
       >
         <CardContent className="p-3 space-y-3">
           <div className="min-w-0 flex-1">
@@ -53,7 +56,7 @@ export function DraggableProcessoCard({
             {proc.editais && (
               <div
                 className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
-                onPointerDown={(e) => e.stopPropagation()} // Evita arrastar se for clicar no órgão
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOrgaoClick(proc.editais!.orgao);
@@ -98,4 +101,4 @@ export function DraggableProcessoCard({
       </Card>
     </div>
   );
-}
+});

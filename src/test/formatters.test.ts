@@ -33,9 +33,9 @@ describe("formatCurrency", () => {
 });
 
 describe("formatDate", () => {
-  it("formata data ISO para dd/MM/yyyy", () => {
-    // New Date("2025-03-15") é UTC, formatDate usa toLocaleDateString
-    const result = formatDate("2025-03-15");
+  it("formata data ISO com precisão para dd/MM/yyyy", () => {
+    // Definir horário meio dia garante que o offset não altere o dia
+    const result = formatDate("2025-03-15T12:00:00Z");
     expect(result).toMatch(/15\/03\/2025/);
   });
 
