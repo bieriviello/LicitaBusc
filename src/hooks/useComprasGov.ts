@@ -80,6 +80,8 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
     editais: BaseEdital[];
     totalPorPortal: { pncp: number; legado: number; pregao: number };
     erros: { pncp?: string; legado?: string; pregao?: string };
+    totalRegistros: number;
+    totalPaginas: number;
 }> {
     const hoje = new Date();
     const sessentaDiasAtras = new Date(hoje);
@@ -134,10 +136,15 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
     let pncpEditais: BaseEdital[] = [];
     let legadoEditais: BaseEdital[] = [];
     let pregaoEditais: BaseEdital[] = [];
+    let maxTotalPaginas = 1;
+    let maxTotalRegistros = 0;
 
     // Processa PNCP
     if (pncpResult.status === "fulfilled") {
-        const items = pncpResult.value.resultado || [];
+        const resp = pncpResult.value;
+        const items = resp.resultado || [];
+        if (resp.totalPaginas > maxTotalPaginas) maxTotalPaginas = resp.totalPaginas;
+        if (resp.totalRegistros > maxTotalRegistros) maxTotalRegistros = resp.totalRegistros;
         if (temPalavraChave) {
             const termo = kw!.toLowerCase();
             const itemsContratacao = items as ComprasGovItemContratacao[];
@@ -159,7 +166,10 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
 
     // Processa RDC Legado
     if (legadoResult.status === "fulfilled") {
-        const rdcResults = legadoResult.value.resultado as ComprasGovRdc[];
+        const resp = legadoResult.value;
+        const rdcResults = resp.resultado as ComprasGovRdc[];
+        if (resp.totalPaginas > maxTotalPaginas) maxTotalPaginas = resp.totalPaginas;
+        if (resp.totalRegistros > maxTotalRegistros) maxTotalRegistros = resp.totalRegistros;
         legadoEditais = (rdcResults || []).map(normalizeRdc);
     } else {
         erros.legado = (legadoResult.reason as Error)?.message || "Erro no Legado";
@@ -167,10 +177,13 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
 
     // Processa Pregões
     if (pregaoResult.status === "fulfilled") {
+        const resp = pregaoResult.value;
         const agora = new Date();
         agora.setHours(0, 0, 0, 0);
+        if (resp.totalPaginas > maxTotalPaginas) maxTotalPaginas = resp.totalPaginas;
+        if (resp.totalRegistros > maxTotalRegistros) maxTotalRegistros = resp.totalRegistros;
         
-        const results = pregaoResult.value.resultado as ComprasGovPregao[];
+        const results = resp.resultado as ComprasGovPregao[];
         let pregoes = (results || []).filter(p => {
             if (!p.dt_fim_proposta) return true;
             return new Date(p.dt_fim_proposta) >= agora;
@@ -204,6 +217,8 @@ async function buscarTodosPortais(filtros: FiltrosUnificados): Promise<{
             pregao: pregaoEditais.length,
         },
         erros,
+        totalRegistros: maxTotalRegistros,
+        totalPaginas: maxTotalPaginas,
     };
 }
 

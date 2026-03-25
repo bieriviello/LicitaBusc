@@ -291,8 +291,8 @@ export default function Editais() {
 
                     <PaginationControls
                         pagina={pagina}
-                        totalPaginas={10}
-                        totalRegistros={data.editais.length}
+                        totalPaginas={data.totalPaginas}
+                        totalRegistros={data.totalRegistros}
                         onPaginaChange={setPagina}
                     />
                 </>

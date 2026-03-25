@@ -1,3 +1,0 @@
-﻿[dotenv@17.3.1] injecting env (3) from .env -- tip: ÔÜÖ´©Å  override existing env vars with { override: true }
-EDITAIS: 2 null
-PROCESSOS: 0 null

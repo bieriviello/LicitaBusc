@@ -1,8 +1,0 @@
-﻿[dotenv@17.3.1] injecting env (3) from .env -- tip: ÔÜÖ´©Å  override existing env vars with { override: true }
-DATA: null
-ERR: {
-  code: '42501',
-  details: null,
-  hint: null,
-  message: 'new row violates row-level security policy for table "editais"'
-}
