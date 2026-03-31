@@ -6,13 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Loader2 } from "lucide-react";
-import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
-// Lazy-loaded pages — carregadas apenas quando acessadas
+// Lazy-loaded pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Editais = lazy(() => import("./pages/Editais"));
 const Processos = lazy(() => import("./pages/Processos"));
@@ -38,18 +36,15 @@ function PageLoader() {
   );
 }
 
-/** Layout wrapper com Outlet para nested routes */
-function ProtectedLayout() {
+function MainLayout() {
   return (
-    <ProtectedRoute>
-      <AppLayout>
-        <ErrorBoundary>
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
-        </ErrorBoundary>
-      </AppLayout>
-    </ProtectedRoute>
+    <AppLayout>
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
+    </AppLayout>
   );
 }
 
@@ -61,11 +56,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            {/* Rota pública */}
-            <Route path="/auth" element={<Auth />} />
-
-            {/* Rotas protegidas com layout compartilhado */}
-            <Route element={<ProtectedLayout />}>
+            <Route element={<MainLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/editais" element={<Editais />} />
               <Route path="/processos" element={<Processos />} />
@@ -73,7 +64,6 @@ const App = () => (
               <Route path="/produtos" element={<Produtos />} />
               <Route path="/calendario" element={<Calendario />} />
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

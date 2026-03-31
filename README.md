@@ -1,73 +1,87 @@
-# Welcome to your Lovable project
+# LicitaBusc
 
-## Project info
+Plataforma inteligente para busca, acompanhamento e gestão de licitações públicas no Brasil.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Funcionalidades
 
-## How can I edit this code?
+- **Busca Unificada** — Consulta simultânea em PNCP, ComprasGov Legado e Pregões Eletrônicos
+- **Kanban de Processos** — Acompanhamento visual do fluxo de licitações (triagem → disputa → homologação)
+- **Propostas Comerciais** — Gestão de propostas com cálculo de margem e impostos
+- **Monitoramentos** — Alertas personalizados para novas oportunidades de licitação
+- **Dashboard** — Métricas e prazos críticos em tempo real
+- **Calendário** — Visualização de prazos e compromissos semanais
+- **Análise com IA** — Análise inteligente de editais e documentos
+- **Multi-portal** — Importação automática com detecção de portal (PNCP, Legado 8.666, Pregões)
 
-There are several ways of editing your application.
+## 🛠 Tech Stack
 
-**Use Lovable**
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | React 18 + TypeScript |
+| Build | Vite |
+| Estilo | Tailwind CSS + shadcn/ui |
+| Estado | React Query (TanStack Query) |
+| Backend | Supabase (PostgreSQL + Auth + Realtime) |
+| API | ComprasGov (PNCP, Legado, Pregões) |
+| Deploy | Vercel |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 📦 Instalação
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/licitabusc.git
+cd licitabusc
 
-**Use your preferred IDE**
+# Instale as dependências
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Configure as variáveis de ambiente
+cp .env.example .env
+# Edite .env com suas credenciais Supabase
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+A aplicação estará disponível em `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📁 Estrutura do Projeto
 
-**Use GitHub Codespaces**
+```
+src/
+├── components/       # Componentes reutilizáveis
+│   ├── Editais/      # Componentes da busca de editais
+│   ├── Processos/    # Kanban board e cards de processos
+│   └── ui/           # shadcn/ui components
+├── hooks/            # Hooks customizados (React Query)
+├── integrations/     # APIs externas (ComprasGov, Supabase)
+├── pages/            # Páginas da aplicação
+├── services/         # Serviços de negócio
+├── types/            # TypeScript types
+├── constants/        # Status, labels, configurações
+└── lib/              # Utilitários e formatadores
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🧪 Testes
 
-## What technologies are used for this project?
+```bash
+# Rodar testes
+npm test
 
-This project is built with:
+# Rodar em modo watch
+npm run test:watch
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Type-check
+npx tsc --noEmit
+```
 
-## How can I deploy this project?
+## 🔧 Variáveis de Ambiente
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+| Variável | Descrição |
+|----------|-----------|
+| `VITE_SUPABASE_URL` | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Chave anônima pública do Supabase |
 
-## Can I connect a custom domain to my Lovable project?
+## 📜 Licença
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Projeto privado — Todos os direitos reservados.

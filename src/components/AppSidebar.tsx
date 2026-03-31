@@ -4,15 +4,10 @@ import {
   FolderOpen,
   FileCheck,
   Package,
-  LogOut,
-  Shield,
-  Users,
   Calendar,
   Bell,
   Trash
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import {
     Popover,
     PopoverContent,
@@ -21,6 +16,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 import {
   Sidebar,
   SidebarContent,
@@ -62,58 +58,13 @@ export function AppSidebar() {
   const { profile, role, signOut, user } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  interface Notification {
-    id: string;
-    title: string;
-    message: string;
-    read: boolean;
-    created_at: string;
-  }
-  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  useEffect(() => {
-    if (user) {
-        fetchNotifications();
-        
-        // Subscription para tempo real
-        const channel = supabase
-            .channel('public:notifications')
-            .on('postgres_changes', { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'notifications',
-                filter: `user_id=eq.${user.id}`
-            }, () => {
-                fetchNotifications();
-            })
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }
-  }, [user]);
-
-  const fetchNotifications = async () => {
-    const { data } = await supabase
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
-    if (data) setNotifications(data);
-  };
-
-  const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
-    fetchNotifications();
-  };
-
-  const deleteNotification = async (id: string) => {
-    await supabase.from("notifications").delete().eq("id", id);
-    fetchNotifications();
-  };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    deleteNotification,
+  } = useNotifications(user?.id);
 
   const initials = profile?.nome
     ?.split(" ")
@@ -126,9 +77,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border/50 bg-sidebar/50 backdrop-blur-xl">
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-700 text-white shadow-lg shadow-primary/20 font-bold text-base ring-4 ring-primary/10">
-            LB
-          </div>
+          <img src="/logo.png" alt="LicitaBusc" className="w-10 h-10 rounded-xl shadow-lg shadow-primary/20 ring-4 ring-primary/10" />
           {!collapsed && (
             <div>
               <h2 className="font-bold text-sm text-foreground leading-none tracking-tight">LicitaBusc</h2>
@@ -228,11 +177,6 @@ export function AppSidebar() {
                   </Popover>
               </div>
             </div>
-          )}
-          {!collapsed && (
-            <button onClick={signOut} className="text-muted-foreground hover:text-destructive transition-colors p-1">
-              <LogOut className="h-4 w-4" />
-            </button>
           )}
         </div>
       </SidebarFooter>

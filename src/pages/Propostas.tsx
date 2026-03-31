@@ -182,12 +182,11 @@ export default function Propostas() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <FileCheck className="h-6 w-6 text-primary" />
-            Propostas
-          </h1>
-          <p className="text-muted-foreground mt-1">Gerencie suas propostas comerciais enviadas e em rascunho</p>
+        <div className="flex flex-col gap-1">
+          <h1 className="text-4xl font-extrabold tracking-tight gradient-text">Propostas</h1>
+          <p className="text-sm font-medium text-muted-foreground/80 uppercase tracking-widest leading-none mt-1">
+            Gestão de propostas comerciais
+          </p>
         </div>
 
         {canCreate() && (

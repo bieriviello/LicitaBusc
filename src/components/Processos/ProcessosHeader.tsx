@@ -3,9 +3,17 @@ import { CreateProcessoDialog } from "./CreateProcessoDialog";
 import { useState } from "react";
 import type { Edital } from "@/types/processos";
 
+interface CreateProcessoData {
+  numero_interno: string;
+  edital_id: string;
+  status: string;
+  prazo?: string | null;
+  observacoes?: string | null;
+}
+
 interface ProcessosHeaderProps {
   editais: Edital[];
-  createProcesso: (data: any) => Promise<any>;
+  createProcesso: (data: CreateProcessoData) => Promise<unknown>;
 }
 
 export function ProcessosHeader({ editais, createProcesso }: ProcessosHeaderProps) {
@@ -14,9 +22,11 @@ export function ProcessosHeader({ editais, createProcesso }: ProcessosHeaderProp
 
   return (
     <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Processos</h1>
-        <p className="text-muted-foreground mt-1">Acompanhe os processos internos vinculados a editais</p>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-4xl font-extrabold tracking-tight gradient-text">Processos</h1>
+        <p className="text-sm font-medium text-muted-foreground/80 uppercase tracking-widest leading-none mt-1">
+          Acompanhamento de processos internos
+        </p>
       </div>
       {canCreate() && (
         <CreateProcessoDialog 

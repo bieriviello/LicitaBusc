@@ -1,13 +1,18 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { createContext, useContext, ReactNode } from "react";
 import type { Database } from "@/integrations/supabase/types";
 
+// User tipo mockado para o hub funcionar sem login
 type AppRole = Database["public"]["Enums"]["app_role"];
 
+interface Profile {
+  id: string;
+  nome: string;
+  email: string;
+}
+
 interface AuthContextType {
-  user: User | null;
-  profile: { id: string; nome: string; email: string } | null;
+  user: any | null;
+  profile: Profile | null;
   role: AppRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -20,48 +25,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Perfil de Administrador Padrão (bypass login)
+const DEFAULT_ADMIN_PROFILE: Profile = {
+  id: "admin-user-id",
+  nome: "Administrador LicitaBusc",
+  email: "contato@licitabusc.com",
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>({ id: "mock-user-123" } as User);
-  const [profile, setProfile] = useState<{ id: string; nome: string; email: string } | null>({ 
-    id: "mock-user-123", 
-    nome: "Administrador (Local)", 
-    email: "admin@local.test" 
-  });
-  const [role, setRole] = useState<AppRole | null>("admin");
-  const [loading, setLoading] = useState(false);
+  // Sempre logado como admin para o Hub funcionar sem tela de login externa
+  const profile = DEFAULT_ADMIN_PROFILE;
+  const role: AppRole = "admin";
+  const user = { id: profile.id, email: profile.email };
+  const loading = false;
 
-  useEffect(() => {
-    // Autenticação desativada temporariamente. Usuário mockado imediatamente.
-    setLoading(false);
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  };
-
-  const signUp = async (email: string, password: string, nome: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { nome }, emailRedirectTo: window.location.origin },
-    });
-    if (error) throw error;
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setRole(null);
-  };
+  const signIn = async () => { console.log("Login desativado - modo hub aberto"); };
+  const signUp = async () => { console.log("Cadastro desativado - modo hub aberto"); };
+  const signOut = async () => { console.log("Logout desativado - modo hub aberto"); };
 
   const hasRole = (r: AppRole) => role === r;
-  const canCreate = () => role === "admin" || role === "comercial";
-  const canManage = () => role === "admin";
+  const canCreate = () => true;
+  const canManage = () => true;
 
   return (
-    <AuthContext.Provider value={{ user, profile, role, loading, signIn, signUp, signOut, hasRole, canCreate, canManage }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        profile, 
+        role, 
+        loading, 
+        signIn, 
+        signUp, 
+        signOut, 
+        hasRole, 
+        canCreate, 
+        canManage 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

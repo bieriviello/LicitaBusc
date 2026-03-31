@@ -1,43 +1,33 @@
 import { supabase } from "@/integrations/supabase/client";
-import { ComprasGovContratacao } from "@/integrations/comprasGov/types";
 
+/**
+ * Serviço de monitoramento de licitações.
+ * 
+ * NOTA: A lógica de verificação real de novos editais deve ser implementada
+ * como uma Edge Function (cron job) no Supabase, que faz a busca nas APIs
+ * do ComprasGov e cria notificações reais quando há matches.
+ * 
+ * Este serviço no frontend serve apenas para consultar e gerenciar
+ * os monitoramentos existentes.
+ */
 export const monitoramentoService = {
-    async checkAllKeywords() {
-        // 1. Get all active monitoramentos
-        const { data: keywords, error: kError } = await supabase
-            .from("monitoramentos")
-            .select("*")
-            .eq("ativo", true);
+  async getActiveMonitoramentos() {
+    const { data, error } = await supabase
+      .from("monitoramentos")
+      .select("*")
+      .eq("ativo", true)
+      .order("created_at", { ascending: false });
 
-        if (kError || !keywords) return [];
+    if (error) throw error;
+    return data ?? [];
+  },
 
-        const allMatches: { title: string; message: string; link: string }[] = [];
+  async toggleAtivo(id: string, ativo: boolean) {
+    const { error } = await supabase
+      .from("monitoramentos")
+      .update({ ativo })
+      .eq("id", id);
 
-        // 2. For each keyword, search the API (Simulation)
-        // In a real scenario, this would be a CRON job in a Supabase Edge Function
-        for (const m of keywords) {
-            // We'll simulate finding 1 new match if it's the first time in the session
-            // or based on some random logic for demo purposes
-            if (Math.random() > 0.7) {
-                const match = {
-                    title: `Nova oportunidade: ${m.nome}`,
-                    message: `Encontramos um edital que coincide com o seu monitoramento '${m.palavra_chave}'.`,
-                    link: `/editais?q=${m.palavra_chave}`
-                };
-                
-                // 3. Create a notification in the database
-                await supabase.from("notifications").insert({
-                    user_id: m.user_id,
-                    title: match.title,
-                    message: match.message,
-                    link: match.link,
-                    type: 'opportunity'
-                });
-
-                allMatches.push(match);
-            }
-        }
-
-        return allMatches;
-    }
+    if (error) throw error;
+  },
 };

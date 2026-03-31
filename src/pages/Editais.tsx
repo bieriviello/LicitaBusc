@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { FileText, Search, AlertTriangle, Loader2, Download, Activity, Trash2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { FileText, Search, AlertTriangle, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ComprasGovFilters } from "@/components/ComprasGovFilters";
@@ -7,11 +7,7 @@ import { ContratacaoCard } from "@/components/ContratacaoCard";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useEditaisUnificados, type FiltrosUnificados } from "@/hooks/useComprasGov";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import type { BaseEdital } from "@/integrations/comprasGov/types";
-import type { Json } from "@/integrations/supabase/types";
-import { useNavigate } from "react-router-dom";
+import { useImportarEdital } from "@/hooks/useImportarEdital";
 import { useMonitoramentos } from "@/hooks/useMonitoramentos";
 import { MonitoramentosSidebar } from "@/components/Editais/MonitoramentosSidebar";
 
@@ -23,9 +19,8 @@ const PORTAL_BADGE: Record<string, { label: string; className: string }> = {
 };
 
 export default function Editais() {
-    const { canCreate, user } = useAuth();
-    const { toast } = useToast();
-    const navigate = useNavigate();
+    const { user } = useAuth();
+    const importarEdital = useImportarEdital();
 
     const [filtros, setFiltros] = useState<FiltrosUnificados | null>(null);
     const [pagina, setPagina] = useState(1);
@@ -59,70 +54,45 @@ export default function Editais() {
         setFiltros(f);
     };
 
-    const handleImportar = async (edital: BaseEdital) => {
-        try {
-            const { data: editalSalvo, error: insertError } = await supabase
-                .from("editais")
-                .insert({
-                    numero: edital.numeroControle || edital.id,
-                    orgao: edital.orgao,
-                    objeto: edital.objeto || "Sem descrição",
-                    data_abertura: edital.dataAbertura?.split("T")[0] || null,
-                    status: "ativo",
-                    raw_json: edital.raw as unknown as Json,
-                })
-                .select("id")
-                .single();
+    const handleImportar = useCallback(
+        (edital: Parameters<typeof importarEdital.mutateAsync>[0]) => {
+            importarEdital.mutateAsync(edital);
+        },
+        [importarEdital]
+    );
 
-            if (insertError) throw insertError;
-
-            if (editalSalvo) {
-                const numeroInterno =
-                    edital.processo ||
-                    `PROC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)
-                        .toString()
-                        .padStart(4, "0")}`;
-                const { error: procError } = await supabase.from("processos").insert({
-                    edital_id: editalSalvo.id,
-                    numero_interno: numeroInterno,
-                    status: "triagem",
-                    observacoes: `Importado de ${edital.portal.toUpperCase()}`,
-                });
-                if (procError) throw procError;
-            }
-
-            toast({ title: "✅ Importação concluída!", description: "Edital e processo criados." });
-            navigate("/processos");
-        } catch (err: unknown) {
-            toast({
-                title: "Erro ao importar",
-                description: err instanceof Error ? err.message : "Erro desconhecido",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const handleExportCsv = () => {
+    const handleExportCsv = useCallback(() => {
         if (!data?.editais.length) return;
+
+        const sanitize = (value: string) => {
+            // Previne CSV injection removendo caracteres perigosos no início
+            let safe = String(value).replace(/"/g, '""');
+            if (/^[=+\-@\t\r]/.test(safe)) safe = "'" + safe;
+            return `"${safe}"`;
+        };
+
         const headers = ["Portal", "Órgão", "Modalidade", "Objeto", "Publicação", "Valor Estimado"];
         const rows = data.editais.map((e) => [
-            `"${e.portal}"`,
-            `"${e.orgao}"`,
-            `"${e.modalidade}"`,
-            `"${(e.objeto || "").replace(/"/g, '""')}"`,
-            `"${e.dataPublicacao || ""}"`,
-            `"${e.valor ?? ""}"`,
+            sanitize(e.portal),
+            sanitize(e.orgao),
+            sanitize(e.modalidade),
+            sanitize(e.objeto || ""),
+            sanitize(e.dataPublicacao || ""),
+            sanitize(String(e.valor ?? "")),
         ]);
-        const csvContent =
-            "data:text/csv;charset=utf-8," +
-            [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+        const csvString = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+        const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
         const link = document.createElement("a");
-        link.setAttribute("href", encodeURI(csvContent));
-        link.setAttribute("download", `licitacoes_${new Date().toISOString().split("T")[0]}.csv`);
+        link.href = url;
+        link.download = `licitacoes_${new Date().toISOString().split("T")[0]}.csv`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
+        URL.revokeObjectURL(url);
+    }, [data]);
 
     const temErros = data && Object.keys(data.erros).length > 0;
 
