@@ -6,17 +6,17 @@ export function useProcessos() {
   return useQuery({
     queryKey: ["processos"],
     queryFn: async () => {
-      // 1. Fetch processos
       const { data: procData, error: procError } = await supabase
         .from("processos")
-        .select("*, editais(objeto, orgao, numero, status, raw_json), documentos(*)")
+        .select(
+          "*, editais(objeto, orgao, numero, status, raw_json), documentos(*), clientes(id, nome, cnpj), empresas(id, nome, cnpj, is_principal)"
+        )
         .order("created_at", { ascending: false });
 
       if (procError) throw procError;
 
       const processos = procData as unknown as Processo[];
 
-      // 2. Fetch participacao counts (graceful fallback if table doesn't exist)
       try {
         const { data: countsData, error: countsError } = await supabase
           .from("participacao_itens")
@@ -57,28 +57,65 @@ export function useEditaisDropdown() {
   });
 }
 
+export interface CreateProcessoInput {
+  numero_interno: string;
+  status: string;
+  edital_id?: string | null;
+  orgao_nome?: string | null;
+  cliente_id?: string | null;
+  data_pregao?: string | null;
+  hora_pregao?: string | null;
+  portal_pregao?: string | null;
+  empresa_id?: string | null;
+  prazo?: string | null;
+  observacoes?: string | null;
+  itens?: {
+    numero_item: number;
+    descricao: string;
+    quantidade: number;
+    unidade: string;
+    valor_estimado: number;
+  }[];
+}
+
 export function useCreateProcesso() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (novoProcesso: {
-      numero_interno: string;
-      edital_id: string;
-      status: string;
-      prazo?: string | null;
-      observacoes?: string | null;
-    }) => {
-      const { data, error } = await supabase
+    mutationFn: async (input: CreateProcessoInput) => {
+      const { itens, ...processoData } = input;
+
+      const { data: processo, error } = await supabase
         .from("processos")
-        .insert([novoProcesso])
+        .insert([processoData])
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+
+      if (itens && itens.length > 0) {
+        const itensParaInserir = itens.map((item) => ({
+          processo_id: processo.id,
+          numero_item: item.numero_item,
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          unidade: item.unidade,
+          valor_estimado: item.valor_estimado,
+          valor_proposta: 0,
+        }));
+
+        const { error: itensError } = await supabase
+          .from("participacao_itens")
+          .insert(itensParaInserir);
+
+        if (itensError) throw itensError;
+      }
+
+      return processo;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["processos"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
     },
   });
 }
@@ -98,7 +135,6 @@ export function useUpdateProcessoStatus() {
       if (error) throw error;
       return data;
     },
-    // Optimistic update
     onMutate: async ({ id, status }) => {
       await queryClient.cancelQueries({ queryKey: ["processos"] });
       const previousProcessos = queryClient.getQueryData<Processo[]>(["processos"]);

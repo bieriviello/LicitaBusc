@@ -34,7 +34,11 @@ export default function Processos() {
       return (
         p.numero_interno?.toLowerCase().includes(term) ||
         p.editais?.objeto?.toLowerCase().includes(term) ||
-        p.editais?.orgao?.toLowerCase().includes(term)
+        p.editais?.orgao?.toLowerCase().includes(term) ||
+        p.orgao_nome?.toLowerCase().includes(term) ||
+        p.clientes?.nome?.toLowerCase().includes(term) ||
+        p.empresas?.nome?.toLowerCase().includes(term) ||
+        p.portal_pregao?.toLowerCase().includes(term)
       );
     });
   }, [processos, searchTerm]);

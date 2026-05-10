@@ -2,18 +2,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { CreateProcessoDialog } from "./CreateProcessoDialog";
 import { useState } from "react";
 import type { Edital } from "@/types/processos";
-
-interface CreateProcessoData {
-  numero_interno: string;
-  edital_id: string;
-  status: string;
-  prazo?: string | null;
-  observacoes?: string | null;
-}
+import type { CreateProcessoInput } from "@/hooks/useProcessos";
 
 interface ProcessosHeaderProps {
   editais: Edital[];
-  createProcesso: (data: CreateProcessoData) => Promise<unknown>;
+  createProcesso: (data: CreateProcessoInput) => Promise<unknown>;
 }
 
 export function ProcessosHeader({ editais, createProcesso }: ProcessosHeaderProps) {
@@ -29,8 +22,8 @@ export function ProcessosHeader({ editais, createProcesso }: ProcessosHeaderProp
         </p>
       </div>
       {canCreate() && (
-        <CreateProcessoDialog 
-          editais={editais} 
+        <CreateProcessoDialog
+          editais={editais}
           onCreate={async (data) => {
             setSaving(true);
             try {
@@ -38,8 +31,8 @@ export function ProcessosHeader({ editais, createProcesso }: ProcessosHeaderProp
             } finally {
               setSaving(false);
             }
-          }} 
-          loading={saving} 
+          }}
+          loading={saving}
         />
       )}
     </div>

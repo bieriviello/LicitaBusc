@@ -123,10 +123,67 @@ export type Database = {
         }
         Relationships: []
       }
+      clientes: {
+        Row: {
+          id: string
+          nome: string
+          cnpj: string | null
+          email: string | null
+          telefone: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          cnpj?: string | null
+          email?: string | null
+          telefone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          cnpj?: string | null
+          email?: string | null
+          telefone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      empresas: {
+        Row: {
+          id: string
+          nome: string
+          cnpj: string
+          is_principal: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          cnpj: string
+          is_principal?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          cnpj?: string
+          is_principal?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       processos: {
         Row: {
           created_at: string
-          edital_id: string
+          edital_id: string | null
           id: string
           numero_interno: string
           observacoes: string | null
@@ -135,10 +192,16 @@ export type Database = {
           status: string
           updated_at: string
           checklist: Json | null
+          orgao_nome: string | null
+          cliente_id: string | null
+          data_pregao: string | null
+          hora_pregao: string | null
+          portal_pregao: string | null
+          empresa_id: string | null
         }
         Insert: {
           created_at?: string
-          edital_id: string
+          edital_id?: string | null
           id?: string
           numero_interno: string
           observacoes?: string | null
@@ -147,10 +210,16 @@ export type Database = {
           status?: string
           updated_at?: string
           checklist?: Json | null
+          orgao_nome?: string | null
+          cliente_id?: string | null
+          data_pregao?: string | null
+          hora_pregao?: string | null
+          portal_pregao?: string | null
+          empresa_id?: string | null
         }
         Update: {
           created_at?: string
-          edital_id?: string
+          edital_id?: string | null
           id?: string
           numero_interno?: string
           observacoes?: string | null
@@ -159,6 +228,12 @@ export type Database = {
           status?: string
           updated_at?: string
           checklist?: Json | null
+          orgao_nome?: string | null
+          cliente_id?: string | null
+          data_pregao?: string | null
+          hora_pregao?: string | null
+          portal_pregao?: string | null
+          empresa_id?: string | null
         }
         Relationships: [
           {
@@ -166,6 +241,20 @@ export type Database = {
             columns: ["edital_id"]
             isOneToOne: false
             referencedRelation: "editais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
         ]

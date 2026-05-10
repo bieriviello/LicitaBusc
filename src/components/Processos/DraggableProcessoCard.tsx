@@ -3,8 +3,18 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Calendar, Check } from "lucide-react";
+import { Building2, Calendar, Check, Clock, Globe, Briefcase } from "lucide-react";
 import type { Processo } from "@/types/processos";
+
+const PORTAIS_LABEL: Record<string, string> = {
+  compras_gov: "Compras.gov.br",
+  comprasnet: "ComprasNet",
+  bec_sp: "BEC/SP",
+  licitanet: "Licitanet",
+  bll: "BLL",
+  bemlicitado: "BemLicitado",
+  outro: "Outro",
+};
 
 interface DraggableProcessoCardProps {
   proc: Processo;
@@ -13,11 +23,11 @@ interface DraggableProcessoCardProps {
   isOverlay?: boolean;
 }
 
-export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({ 
-  proc, 
-  onClick, 
-  onOrgaoClick, 
-  isOverlay = false 
+export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({
+  proc,
+  onClick,
+  onOrgaoClick,
+  isOverlay = false,
 }: DraggableProcessoCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: proc.id,
@@ -27,17 +37,24 @@ export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({
   const style = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging && !isOverlay ? 0.4 : 1,
-    zIndex: isDragging ? 999 : 'auto',
+    zIndex: isDragging ? 999 : "auto",
   };
 
   const completedItems = proc.checklist?.filter((c) => c.completed).length || 0;
   const totalItems = proc.checklist?.length || 0;
 
+  // Resolve o nome do órgão: prioriza orgao_nome (manual), depois edital
+  const orgaoNome = proc.orgao_nome || proc.editais?.orgao;
+  const orgaoDisplay = proc.clientes?.nome || orgaoNome;
+
+  const empresaNome = proc.empresas?.nome;
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Card
-        className={`border-border/50 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing group bg-card ${isOverlay ? 'ring-2 ring-primary shadow-2xl rotate-2' : ''
-          }`}
+        className={`border-border/50 hover:shadow-md transition-all duration-200 cursor-grab active:cursor-grabbing group bg-card ${
+          isOverlay ? "ring-2 ring-primary shadow-2xl rotate-2" : ""
+        }`}
         onClick={() => onClick(proc)}
       >
         <CardContent className="p-3 space-y-3">
@@ -45,7 +62,7 @@ export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({
             <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
               {proc.numero_interno}
             </p>
-            {proc.editais && (
+            {proc.editais?.objeto && (
               <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
                 {proc.editais.objeto}
               </p>
@@ -53,23 +70,55 @@ export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({
           </div>
 
           <div className="space-y-1.5 text-[10px] text-muted-foreground">
-            {proc.editais && (
+            {orgaoDisplay && (
               <div
                 className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOrgaoClick(proc.editais!.orgao);
+                  onOrgaoClick(orgaoDisplay);
                 }}
               >
-                <Building2 className="h-3 w-3 text-primary/60" />
-                <span className="truncate border-b border-dotted border-muted-foreground/30 hover:border-primary/50">{proc.editais.orgao}</span>
+                <Building2 className="h-3 w-3 text-primary/60 shrink-0" />
+                <span className="truncate border-b border-dotted border-muted-foreground/30 hover:border-primary/50">
+                  {orgaoDisplay}
+                </span>
               </div>
             )}
-            {proc.prazo && (
+
+            {proc.data_pregao && (
               <div className="flex items-center gap-1.5">
-                <Calendar className="h-3 w-3 text-primary/60" />
-                <span className={new Date(proc.prazo) < new Date() ? 'text-destructive font-semibold' : ''}>
+                <Calendar className="h-3 w-3 text-primary/60 shrink-0" />
+                <span>
+                  {new Date(proc.data_pregao + "T00:00").toLocaleDateString("pt-BR")}
+                  {proc.hora_pregao && (
+                    <span className="flex items-center gap-0.5 inline-flex ml-1">
+                      <Clock className="h-2.5 w-2.5" />
+                      {proc.hora_pregao.substring(0, 5)}
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {proc.portal_pregao && (
+              <div className="flex items-center gap-1.5">
+                <Globe className="h-3 w-3 text-primary/60 shrink-0" />
+                <span>{PORTAIS_LABEL[proc.portal_pregao] || proc.portal_pregao}</span>
+              </div>
+            )}
+
+            {empresaNome && (
+              <div className="flex items-center gap-1.5">
+                <Briefcase className="h-3 w-3 text-primary/60 shrink-0" />
+                <span className="truncate">{empresaNome}</span>
+              </div>
+            )}
+
+            {proc.prazo && !proc.data_pregao && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3 w-3 text-primary/60 shrink-0" />
+                <span className={new Date(proc.prazo) < new Date() ? "text-destructive font-semibold" : ""}>
                   Prazo: {new Date(proc.prazo).toLocaleDateString("pt-BR")}
                 </span>
               </div>
@@ -80,7 +129,9 @@ export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({
             <div className="pt-2 border-t border-border/30">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[9px] font-bold text-muted-foreground">DOCUMENTOS</span>
-                <span className="text-[9px] font-bold text-primary">{Math.round((completedItems / totalItems) * 100)}%</span>
+                <span className="text-[9px] font-bold text-primary">
+                  {Math.round((completedItems / totalItems) * 100)}%
+                </span>
               </div>
               <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
                 <div
@@ -92,7 +143,10 @@ export const DraggableProcessoCard = React.memo(function DraggableProcessoCard({
           )}
 
           {proc.participacao_itens && proc.participacao_itens[0]?.count > 0 && (
-            <Badge variant="outline" className="w-full justify-center text-[9px] py-1 bg-primary/5 text-primary border-primary/20 gap-1 mt-1">
+            <Badge
+              variant="outline"
+              className="w-full justify-center text-[9px] py-1 bg-primary/5 text-primary border-primary/20 gap-1 mt-1"
+            >
               <Check className="h-2.5 w-2.5" />
               {proc.participacao_itens[0].count} ITENS VINCULADOS
             </Badge>
