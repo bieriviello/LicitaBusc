@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/compras/:path*",
+      "destination": "https://dadosabertos.compras.gov.br/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
